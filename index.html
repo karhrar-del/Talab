@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- PWA / iOS Native Feel Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Talab">
+    <link rel="manifest" href="manifest.json">
+    <title>Talab | طلب</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="loading-bar" class="loading-bar"></div>
+    <div id="carry-over-alert" class="alert hidden">
+        <span class="icon">⚠️</span>
+        <span id="carry-over-message"></span>
+        <button id="close-alert">&times;</button>
+    </div>
+
+    <!-- Screen 1: Main Dashboard & Input -->
+    <div id="screen-main" class="screen active">
+        <div class="container pb-nav">
+            <header>
+                <h1>طلب | Talab</h1>
+                <p id="current-month-display">الشهر الحالي: </p>
+            </header>
+            
+            <main>
+                <section class="dashboard">
+                    <div class="summary-grid">
+                        <div class="summary-card highlight-revenue" id="revenue-card" style="cursor: pointer;">
+                            <h3>إجمالي الإيرادات (هذا الشهر) <span>▼</span></h3>
+                            <p class="value" id="monthly-revenue">0 <span>د.ع</span></p>
+                            <div id="revenue-breakdown" class="hidden" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem; font-size: 0.95rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span>التوصيل:</span> <span id="monthly-delivery-earnings">0 د.ع</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>الإكراميات:</span> <span id="monthly-tips-earnings">0 د.ع</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card highlight-deferred">
+                            <h3>الطلبات المؤجلة (من آخر وردية)</h3>
+                            <p class="value" id="monthly-deferred">0</p>
+                            <span class="badge">تحذير</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card form-section">
+                    <h2>تسجيل يومي</h2>
+                    <form id="tracker-form">
+                        <div class="form-group">
+                            <label for="log-date">التاريخ</label>
+                            <input type="date" id="log-date" name="log-date" required>
+                        </div>
+                        <div class="form-group config-group">
+                            <label for="price">سعر التوصيل الثابت (د.ع)</label>
+                            <input type="number" id="price" name="price" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="received">الطلبات الكلي المستلمة</label>
+                            <input type="number" id="received" name="received" min="0" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="delivered">الطلبات المسلمة (الناجحة)</label>
+                            <input type="number" id="delivered" name="delivered" min="0" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="tips">الإكراميات (د.ع)</label>
+                            <input type="number" id="tips" name="tips" min="0" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="deferred">الطلبات المؤجلة (للغد)</label>
+                            <input type="number" id="deferred" name="deferred" min="0" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="returned">الطلبات المرتجعة (للشركة)</label>
+                            <input type="number" id="returned" name="returned" min="0" step="1" required>
+                        </div>
+                        <button type="submit" class="btn-primary">حفظ السجل</button>
+                    </form>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Screen 2: Monthly History View -->
+    <div id="screen-history" class="screen">
+        <div class="container pb-nav">
+            <header>
+                <h1>سجل الأشهر</h1>
+            </header>
+            <main>
+                <div class="month-navigator">
+                    <button id="prev-month" class="btn-nav">السابق</button>
+                    <h2 id="history-month-display"></h2>
+                    <button id="next-month" class="btn-nav">التالي</button>
+                </div>
+                
+                <section class="card history-section">
+                    <div id="history-list" class="history-list">
+                        <!-- History items will be injected here -->
+                    </div>
+                    <div id="no-history-msg" class="hidden" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">لا توجد سجلات لهذا الشهر.</div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Screen 3: Payments View -->
+    <div id="screen-payments" class="screen">
+        <div class="container pb-nav">
+            <header>
+                <h1>المدفوعات</h1>
+                <p>سجل حسابات الشركة</p>
+            </header>
+            <main>
+                <section class="dashboard">
+                    <div class="summary-card" style="border-top: 4px solid var(--primary);">
+                        <h3>الرصيد الحالي (المطلوب من الشركة)</h3>
+                        <p class="value" id="current-balance">0 <span>د.ع</span></p>
+                    </div>
+                </section>
+                
+                <section class="card form-section">
+                    <h2>إضافة حركة جديدة</h2>
+                    <form id="payment-form">
+                        <div class="form-group">
+                            <label for="pay-amount">المبلغ (د.ع)</label>
+                            <input type="number" id="pay-amount" name="pay-amount" min="1" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>نوع الحركة</label>
+                            <div class="radio-tile-group">
+                                <label class="radio-tile">
+                                    <input type="radio" name="pay-type" value="addition" required checked class="hidden-radio">
+                                    <span class="tile-content">
+                                        <span class="tile-check">✅</span>
+                                        إضافة للرصيد
+                                    </span>
+                                </label>
+                                <label class="radio-tile">
+                                    <input type="radio" name="pay-type" value="withdrawal" required class="hidden-radio">
+                                    <span class="tile-content">
+                                        <span class="tile-check">✅</span>
+                                        سحب / استلام دفعة
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pay-date">التاريخ</label>
+                            <input type="date" id="pay-date" name="pay-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pay-notes">ملاحظات (اختياري)</label>
+                            <input type="text" id="pay-notes" name="pay-notes">
+                        </div>
+                        <button type="submit" class="btn-primary">حفظ الحركة</button>
+                    </form>
+                </section>
+
+                <div class="month-navigator" style="margin-top: 1rem;">
+                    <button id="prev-payment-month" class="btn-nav">السابق</button>
+                    <h2 id="payment-month-display"></h2>
+                    <button id="next-payment-month" class="btn-nav">التالي</button>
+                </div>
+
+                <section class="card history-section">
+                    <h2>سجل الحركات</h2>
+                    <div id="payment-list" class="history-list">
+                        <!-- Payment items will be injected here -->
+                    </div>
+                    <div id="no-payment-msg" class="hidden" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">لا توجد حركات لهذا الشهر.</div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-target="screen-main">
+            <span class="nav-icon">🏠</span>
+            <span>الرئيسية</span>
+        </button>
+        <button class="nav-item" data-target="screen-history">
+            <span class="nav-icon">📅</span>
+            <span>السجل</span>
+        </button>
+        <button class="nav-item" data-target="screen-payments">
+            <span class="nav-icon">💰</span>
+            <span>المدفوعات</span>
+        </button>
+    </nav>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal hidden">
+        <div class="modal-content card">
+            <h2 id="edit-modal-title">تعديل سجل</h2>
+            <form id="edit-form">
+                <input type="hidden" id="edit-date" name="edit-date">
+                <div class="form-group config-group">
+                    <label for="edit-price">سعر التوصيل الثابت (د.ع)</label>
+                    <input type="number" id="edit-price" name="edit-price" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-received">الطلبات الكلي المستلمة</label>
+                    <input type="number" id="edit-received" name="edit-received" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-delivered">الطلبات المسلمة (الناجحة)</label>
+                    <input type="number" id="edit-delivered" name="edit-delivered" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-tips">الإكراميات (د.ع)</label>
+                    <input type="number" id="edit-tips" name="edit-tips" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-deferred">الطلبات المؤجلة (للغد)</label>
+                    <input type="number" id="edit-deferred" name="edit-deferred" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-returned">الطلبات المرتجعة (للشركة)</label>
+                    <input type="number" id="edit-returned" name="edit-returned" min="0" step="1" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary">حفظ التعديلات</button>
+                    <button type="button" id="cancel-edit" class="btn-secondary">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
