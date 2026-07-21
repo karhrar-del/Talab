@@ -26,8 +26,10 @@ body {
     color: var(--text-main);
     min-height: 100vh;
     display: flex;
-    justify-content: center;
-    /* safe area padding handled in containers */
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-bottom: 100px;
 }
 
 /* Screens */
@@ -82,7 +84,8 @@ header p {
     border-right: 4px solid var(--deferred-color);
     color: #92400e;
     padding: 1rem;
-    margin: env(safe-area-inset-top, 10px) 1rem 1rem 1rem;
+    margin: 0 0 1.5rem 0;
+    width: 100%;
     border-radius: 4px; /* Flat design */
     display: flex;
     align-items: center;
@@ -326,7 +329,7 @@ header p {
     display: flex;
     justify-content: space-around;
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    z-index: 1000;
+    z-index: 9999;
 }
 
 .nav-item {
@@ -506,6 +509,35 @@ header p {
 }
 .payment-item-amount.withdrawal {
     color: var(--returned-color); /* Red */
+}
+
+.payment-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+.btn-icon {
+    background: #f3f4f6;
+    border: 1px solid var(--border-color);
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-family: var(--font-family);
+    font-weight: 700;
+    color: var(--text-main);
+    transition: background 0.1s;
+}
+.btn-icon:active {
+    background: #e5e7eb;
+}
+.btn-icon.delete {
+    color: var(--returned-color);
+    border-color: #fca5a5;
+    background: #fef2f2;
+}
+.btn-icon.delete:active {
+    background: #fee2e2;
 }
 
 /* Radio Tiles */

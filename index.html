@@ -14,11 +14,6 @@
 </head>
 <body>
     <div id="loading-bar" class="loading-bar"></div>
-    <div id="carry-over-alert" class="alert hidden">
-        <span class="icon">⚠️</span>
-        <span id="carry-over-message"></span>
-        <button id="close-alert">&times;</button>
-    </div>
 
     <!-- Screen 1: Main Dashboard & Input -->
     <div id="screen-main" class="screen active">
@@ -29,6 +24,12 @@
             </header>
             
             <main>
+                <div id="carry-over-alert" class="alert hidden">
+                    <span class="icon">⚠️</span>
+                    <span id="carry-over-message"></span>
+                    <button id="close-alert">&times;</button>
+                </div>
+
                 <section class="dashboard">
                     <div class="summary-grid">
                         <div class="summary-card highlight-revenue" id="revenue-card" style="cursor: pointer;">
@@ -161,7 +162,8 @@
                             <label for="pay-notes">ملاحظات (اختياري)</label>
                             <input type="text" id="pay-notes" name="pay-notes">
                         </div>
-                        <button type="submit" class="btn-primary">حفظ الحركة</button>
+                        <input type="hidden" id="edit-payment-id" value="">
+                        <button type="submit" id="payment-submit-btn" class="btn-primary">حفظ الحركة</button>
                     </form>
                 </section>
 

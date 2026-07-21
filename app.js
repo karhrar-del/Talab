@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, doc, getDocs, setDoc, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // ---- Firebase Configuration ----
@@ -186,6 +186,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function updatePaymentDoc(id, data) {
+        try {
+            setLoading(true);
+            await updateDoc(doc(db, 'payments', id), data);
+            cachedPayments = null;
+        } catch (error) {
+            console.error('Error updating payment:', error);
+            alert('حدث خطأ أثناء التحديث.');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function deletePaymentDoc(id) {
+        try {
+            setLoading(true);
+            await deleteDoc(doc(db, 'payments', id));
+            cachedPayments = null;
+        } catch (error) {
+            console.error('Error deleting payment:', error);
+            alert('حدث خطأ أثناء الحذف.');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }
+
     // Carry-over Mechanism
     async function checkCarryOver() {
         const logs = await getLogs();
@@ -336,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Calculate All-Time Total Revenue and Prior Net Balance
         Object.keys(logs).forEach(date => {
             const log = logs[date];
-            const rev = (Number(log.delivered) * Number(log.price)) + Number(log.tips);
+            const rev = (Number(log.delivered) * Number(log.price)); // Tips excluded
             currentBalance += rev;
 
             if (new Date(date) < viewingDateStart) {
@@ -382,9 +410,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="payment-item-details">
                     <div class="payment-item-date">${payment.date}</div>
                     ${payment.notes ? `<div class="payment-item-notes">${payment.notes}</div>` : ''}
+                    <div class="payment-actions">
+                        <button class="btn-icon edit">تعديل</button>
+                        <button class="btn-icon delete">حذف</button>
+                    </div>
                 </div>
                 <div class="payment-item-amount ${amountClass}">${sign} ${formatCurrency(amount)} د.ع</div>
             `;
+
+            // Event Listeners for Edit & Delete
+            const editBtn = paymentItem.querySelector('.edit');
+            const deleteBtn = paymentItem.querySelector('.delete');
+
+            editBtn.addEventListener('click', () => {
+                document.getElementById('pay-amount').value = payment.amount;
+                document.querySelector('input[name="pay-type"][value="' + payment.type + '"]').checked = true;
+                document.getElementById('pay-date').value = payment.date;
+                document.getElementById('pay-notes').value = payment.notes || '';
+                
+                document.getElementById('edit-payment-id').value = payment.id;
+                document.getElementById('payment-submit-btn').innerText = 'تحديث الحركة';
+                
+                document.getElementById('screen-payments').scrollIntoView({ behavior: 'smooth' });
+            });
+
+            deleteBtn.addEventListener('click', async () => {
+                if (confirm('هل أنت متأكد من حذف هذه الحركة؟')) {
+                    await deletePaymentDoc(payment.id);
+                    await updatePaymentsView();
+                }
+            });
 
             paymentListEl.appendChild(paymentItem);
         });
@@ -514,20 +569,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const type = document.querySelector('input[name="pay-type"]:checked').value;
         const date = document.getElementById('pay-date').value;
         const notes = document.getElementById('pay-notes').value.trim();
+        const editId = document.getElementById('edit-payment-id').value;
 
         try {
-            await savePayment({ amount, type, date, notes });
+            if (editId) {
+                await updatePaymentDoc(editId, { amount, type, date, notes });
+                alert('تم تحديث الحركة بنجاح!');
+            } else {
+                await savePayment({ amount, type, date, notes });
+                alert('تم حفظ الحركة بنجاح!');
+            }
         } catch (error) {
             return;
         }
-        alert('تم حفظ الحركة بنجاح!');
 
         await updatePaymentsView();
         paymentForm.reset();
 
         // Restore defaults
         document.querySelector('input[name="pay-type"][value="addition"]').checked = true;
-        payDateInput.value = date; // keep date
+        document.getElementById('pay-date').value = date; // keep date
+        document.getElementById('edit-payment-id').value = '';
+        document.getElementById('payment-submit-btn').innerText = 'حفظ الحركة';
     });
 
     // Initialization
