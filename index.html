@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,11 +8,13 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Talab">
+    <link rel="apple-touch-icon" href="new_logo.png">
     <link rel="manifest" href="manifest.json">
     <title>Talab | طلب</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div id="loading-bar" class="loading-bar"></div>
 
@@ -22,7 +25,7 @@
                 <h1>طلب | Talab</h1>
                 <p id="current-month-display">الشهر الحالي: </p>
             </header>
-            
+
             <main>
                 <div id="carry-over-alert" class="alert hidden">
                     <span class="icon">⚠️</span>
@@ -35,7 +38,8 @@
                         <div class="summary-card highlight-revenue" id="revenue-card" style="cursor: pointer;">
                             <h3>إجمالي الإيرادات (هذا الشهر) <span>▼</span></h3>
                             <p class="value" id="monthly-revenue">0 <span>د.ع</span></p>
-                            <div id="revenue-breakdown" class="hidden" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem; font-size: 0.95rem;">
+                            <div id="revenue-breakdown" class="hidden"
+                                style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem; font-size: 0.95rem;">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                                     <span>التوصيل:</span> <span id="monthly-delivery-earnings">0 د.ع</span>
                                 </div>
@@ -102,12 +106,14 @@
                     <h2 id="history-month-display"></h2>
                     <button id="next-month" class="btn-nav">التالي</button>
                 </div>
-                
+
                 <section class="card history-section">
                     <div id="history-list" class="history-list">
                         <!-- History items will be injected here -->
                     </div>
-                    <div id="no-history-msg" class="hidden" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">لا توجد سجلات لهذا الشهر.</div>
+                    <div id="no-history-msg" class="hidden"
+                        style="text-align: center; color: var(--text-muted); padding: 1rem 0;">لا توجد سجلات لهذا الشهر.
+                    </div>
                 </section>
             </main>
         </div>
@@ -127,7 +133,7 @@
                         <p class="value" id="current-balance">0 <span>د.ع</span></p>
                     </div>
                 </section>
-                
+
                 <section class="card form-section">
                     <h2>إضافة حركة جديدة</h2>
                     <form id="payment-form">
@@ -139,14 +145,16 @@
                             <label>نوع الحركة</label>
                             <div class="radio-tile-group">
                                 <label class="radio-tile">
-                                    <input type="radio" name="pay-type" value="addition" required checked class="hidden-radio">
+                                    <input type="radio" name="pay-type" value="addition" required checked
+                                        class="hidden-radio">
                                     <span class="tile-content">
                                         <span class="tile-check">✅</span>
                                         إضافة للرصيد
                                     </span>
                                 </label>
                                 <label class="radio-tile">
-                                    <input type="radio" name="pay-type" value="withdrawal" required class="hidden-radio">
+                                    <input type="radio" name="pay-type" value="withdrawal" required
+                                        class="hidden-radio">
                                     <span class="tile-content">
                                         <span class="tile-check">✅</span>
                                         سحب / استلام دفعة
@@ -178,7 +186,9 @@
                     <div id="payment-list" class="history-list">
                         <!-- Payment items will be injected here -->
                     </div>
-                    <div id="no-payment-msg" class="hidden" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">لا توجد حركات لهذا الشهر.</div>
+                    <div id="no-payment-msg" class="hidden"
+                        style="text-align: center; color: var(--text-muted); padding: 1rem 0;">لا توجد حركات لهذا الشهر.
+                    </div>
                 </section>
             </main>
         </div>
@@ -240,4 +250,5 @@
 
     <script type="module" src="app.js"></script>
 </body>
+
 </html>
