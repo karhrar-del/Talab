@@ -602,3 +602,280 @@ header p {
     50% { opacity: 1; }
 }
 
+/* Screen 4: Deferred Orders Styles */
+.deferred-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.deferred-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.15rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    position: relative;
+}
+
+.deferred-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.65rem;
+}
+
+.deferred-customer-name {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: color 0.15s;
+}
+
+.deferred-customer-name:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+.deferred-customer-name::after {
+    content: '✏️';
+    font-size: 0.8rem;
+}
+
+.deferred-badge {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.deferred-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.deferred-info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.deferred-info-label {
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 70px;
+}
+
+.deferred-info-value {
+    font-weight: 500;
+    flex-grow: 1;
+}
+
+.deferred-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-card-action {
+    background: #f3f4f6;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.5rem 0.85rem;
+    font-family: var(--font-family);
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-main);
+    text-decoration: none;
+    transition: background 0.1s;
+}
+
+.btn-card-action:active {
+    background: #e5e7eb;
+}
+
+.btn-phone-trigger {
+    border-color: #93c5fd;
+    background: #eff6ff;
+    color: var(--primary);
+}
+
+.btn-phone-trigger:active {
+    background: #dbeafe;
+}
+
+.btn-location-trigger {
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+    color: var(--revenue-color);
+}
+
+.btn-location-trigger:active {
+    background: #d1fae5;
+}
+
+.btn-location-missing {
+    border-color: #fde68a;
+    background: #fffbeb;
+    color: #d97706;
+}
+
+.btn-location-missing:active {
+    background: #fef3c7;
+}
+
+/* Status Options inside Modal */
+.status-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.btn-status-option {
+    width: 100%;
+    padding: 0.875rem;
+    font-family: var(--font-family);
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.15s;
+}
+
+.btn-status-option:active {
+    opacity: 0.8;
+}
+
+.btn-status-deferred {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    color: #92400e;
+}
+
+.btn-status-delivered {
+    background: #dcfce7;
+    border: 1px solid #22c55e;
+    color: #15803d;
+}
+
+.btn-status-returned {
+    background: #fee2e2;
+    border: 1px solid #ef4444;
+    color: #b91c1c;
+}
+
+/* Phone Action Buttons inside Modal */
+.phone-action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.btn-phone-action {
+    flex: 1;
+    padding: 0.875rem;
+    border-radius: 4px;
+    font-weight: 700;
+    font-family: var(--font-family);
+    font-size: 1rem;
+    text-align: center;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.btn-phone-action.btn-call {
+    background: var(--primary);
+    color: #ffffff;
+    border: none;
+}
+
+.btn-phone-action.btn-call:active {
+    background: var(--primary-hover);
+}
+
+.btn-phone-action.btn-whatsapp {
+    background: #25d366;
+    color: #ffffff;
+    border: none;
+}
+
+.btn-phone-action.btn-whatsapp:active {
+    background: #1eb957;
+}
+
+/* Edit & Delete Buttons on Card */
+.btn-card-edit {
+    background: #f0f7ff;
+    border: 1px solid #93c5fd;
+    color: var(--primary);
+    font-size: 0.85rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-family);
+    transition: background 0.1s;
+}
+
+.btn-card-edit:active {
+    background: #dbeafe;
+}
+
+.btn-card-delete {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: var(--returned-color);
+    font-size: 0.85rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-family);
+    transition: background 0.1s;
+}
+
+.btn-card-delete:active {
+    background: #fee2e2;
+}
+
+/* Map Chooser Options */
+.btn-map-choice {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-main);
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-map-choice:hover, .btn-map-choice:active {
+    background: #f8fafc;
+    border-color: var(--primary);
+}
+
+
+

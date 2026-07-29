@@ -106,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---- In-Memory Cache ----
     let cachedLogs = null;
     let cachedPayments = null;
+    let cachedDeferredOrders = null;
 
     // Format Currency: Iraqi Dinar, Thousands Separator, 0 Decimal Places
     function formatCurrency(amount) {
@@ -208,6 +209,65 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Error deleting payment:', error);
             alert('حدث خطأ أثناء الحذف.');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Database - Deferred Orders (Firestore)
+    async function getDeferredOrders() {
+        try {
+            if (cachedDeferredOrders) return cachedDeferredOrders;
+            setLoading(true);
+            const snapshot = await getDocs(collection(db, 'deferred_orders'));
+            cachedDeferredOrders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            return cachedDeferredOrders;
+        } catch (error) {
+            console.error('Error fetching deferred orders:', error);
+            alert('حدث خطأ أثناء تحميل الطلبات المؤجلة.');
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function saveDeferredOrder(order) {
+        try {
+            setLoading(true);
+            await addDoc(collection(db, 'deferred_orders'), order);
+            cachedDeferredOrders = null;
+        } catch (error) {
+            console.error('Error saving deferred order:', error);
+            alert('حدث خطأ أثناء حفظ الطلب المؤجل.');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function updateDeferredOrderDoc(id, data) {
+        try {
+            setLoading(true);
+            await updateDoc(doc(db, 'deferred_orders', id), data);
+            cachedDeferredOrders = null;
+        } catch (error) {
+            console.error('Error updating deferred order:', error);
+            alert('حدث خطأ أثناء التحديث.');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function deleteDeferredOrderDoc(id) {
+        try {
+            setLoading(true);
+            await deleteDoc(doc(db, 'deferred_orders', id));
+            cachedDeferredOrders = null;
+        } catch (error) {
+            console.error('Error deleting deferred order:', error);
+            alert('حدث خطأ أثناء حذف الطلب.');
             throw error;
         } finally {
             setLoading(false);
@@ -593,6 +653,400 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('payment-submit-btn').innerText = 'حفظ الحركة';
     });
 
+    // ---- Helpers for Screen 4 (Deferred Orders) ----
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function formatWhatsAppLink(phone) {
+        let cleaned = String(phone).replace(/\D/g, '');
+        cleaned = cleaned.replace(/^0+/, '');
+        if (!cleaned.startsWith('964')) {
+            cleaned = '964' + cleaned;
+        }
+        return `https://wa.me/${cleaned}`;
+    }
+
+    // ---- Extract Latitude & Longitude from Maps / WhatsApp URLs ----
+    function extractCoordinates(urlStr) {
+        if (!urlStr) return null;
+        try {
+            const decoded = decodeURIComponent(urlStr);
+            // Matches coordinate pattern (e.g. 31.028078,46.236660, q=31.028078,46.236660, @31.028078,46.236660)
+            const coordRegex = /(-?\d{1,2}\.\d+)\s*[\s,:]\s*(-?\d{1,3}\.\d+)/;
+            const match = decoded.match(coordRegex);
+            if (match) {
+                const lat = parseFloat(match[1]);
+                const lng = parseFloat(match[2]);
+                if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                    return { lat, lng };
+                }
+            }
+        } catch (e) {
+            console.error('Error extracting coordinates:', e);
+        }
+        return null;
+    }
+
+    // ---- Deferred Orders Elements ----
+    const toggleDeferredFormBtn = document.getElementById('toggle-deferred-form-btn');
+    const deferredFormModal = document.getElementById('deferred-form-modal');
+    const deferredFormTitle = document.getElementById('deferred-form-title');
+    const deferredForm = document.getElementById('deferred-form');
+    const editDeferredIdInput = document.getElementById('edit-deferred-id');
+    const customerNameInput = document.getElementById('customer-name');
+    const customerPhoneInput = document.getElementById('customer-phone');
+    const customerAddressInput = document.getElementById('customer-address');
+    const customerLocationInput = document.getElementById('customer-location');
+    const customerNotesInput = document.getElementById('customer-notes');
+    const deferredSubmitBtn = document.getElementById('deferred-submit-btn');
+    const cancelDeferredFormBtn = document.getElementById('cancel-deferred-form-btn');
+    const deferredListEl = document.getElementById('deferred-list');
+    const noDeferredMsg = document.getElementById('no-deferred-msg');
+
+    // Status Modal Elements
+    const deferredStatusModal = document.getElementById('deferred-status-modal');
+    const statusCustomerNameEl = document.getElementById('status-customer-name');
+    const statusOrderIdInput = document.getElementById('status-order-id');
+    const cancelStatusModalBtn = document.getElementById('cancel-status-modal');
+    const statusOptionBtns = document.querySelectorAll('.btn-status-option');
+
+    // Phone Modal Elements
+    const deferredPhoneModal = document.getElementById('deferred-phone-modal');
+    const phoneModalNameEl = document.getElementById('phone-modal-name');
+    const phoneModalNumberEl = document.getElementById('phone-modal-number');
+    const phoneCallBtn = document.getElementById('phone-call-btn');
+    const phoneWaBtn = document.getElementById('phone-wa-btn');
+    const cancelPhoneModalBtn = document.getElementById('cancel-phone-modal');
+
+    // Location Modal Elements
+    const deferredLocationModal = document.getElementById('deferred-location-modal');
+    const locationForm = document.getElementById('location-form');
+    const locationOrderIdInput = document.getElementById('location-order-id');
+    const locationUrlInput = document.getElementById('location-url-input');
+    const cancelLocationModalBtn = document.getElementById('cancel-location-modal');
+
+    // Smart Map Chooser Modal Elements
+    const mapChooserModal = document.getElementById('map-chooser-modal');
+    const mapOptionGoogle = document.getElementById('map-option-google');
+    const mapOptionApple = document.getElementById('map-option-apple');
+    const mapOptionWaze = document.getElementById('map-option-waze');
+    const cancelMapChooserModalBtn = document.getElementById('cancel-map-chooser-modal');
+
+    // ---- Toggle / Form Helpers ----
+    function resetDeferredForm() {
+        deferredForm.reset();
+        editDeferredIdInput.value = '';
+        deferredFormTitle.innerText = 'إضافة طلب مؤجل جديد';
+        deferredSubmitBtn.innerText = 'حفظ الطلب المؤجل';
+    }
+
+    function openDeferredFormModal() {
+        deferredFormModal.classList.remove('hidden');
+    }
+
+    function closeDeferredFormModal() {
+        deferredFormModal.classList.add('hidden');
+        resetDeferredForm();
+    }
+
+    toggleDeferredFormBtn.addEventListener('click', () => {
+        resetDeferredForm();
+        openDeferredFormModal();
+    });
+
+    cancelDeferredFormBtn.addEventListener('click', closeDeferredFormModal);
+
+    // ---- Modal Helper Functions ----
+    function openStatusModal(order) {
+        statusCustomerNameEl.innerText = `العميل: ${order.name}`;
+        statusOrderIdInput.value = order.id;
+        deferredStatusModal.classList.remove('hidden');
+    }
+
+    function closeStatusModal() {
+        deferredStatusModal.classList.add('hidden');
+        statusOrderIdInput.value = '';
+    }
+
+    function openPhoneModal(name, phone) {
+        phoneModalNameEl.innerText = name;
+        phoneModalNumberEl.innerText = phone;
+        phoneCallBtn.href = `tel:${phone}`;
+        phoneWaBtn.href = formatWhatsAppLink(phone);
+        deferredPhoneModal.classList.remove('hidden');
+    }
+
+    function closePhoneModal() {
+        deferredPhoneModal.classList.add('hidden');
+    }
+
+    function openLocationModal(orderId) {
+        locationOrderIdInput.value = orderId;
+        locationUrlInput.value = '';
+        deferredLocationModal.classList.remove('hidden');
+    }
+
+    function closeLocationModal() {
+        deferredLocationModal.classList.add('hidden');
+        locationOrderIdInput.value = '';
+    }
+
+    function openMapChooserModal(rawUrl) {
+        const coords = extractCoordinates(rawUrl);
+
+        if (coords) {
+            const { lat, lng } = coords;
+            mapOptionGoogle.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+            mapOptionApple.href = `https://maps.apple.com/?q=${lat},${lng}&ll=${lat},${lng}`;
+            mapOptionWaze.href = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+        } else {
+            // Fallback to rawUrl if coordinates are not extractable
+            mapOptionGoogle.href = rawUrl;
+            mapOptionApple.href = rawUrl;
+            mapOptionWaze.href = rawUrl;
+        }
+
+        mapOptionGoogle.onclick = null;
+        mapChooserModal.classList.remove('hidden');
+    }
+
+    function closeMapChooserModal() {
+        mapChooserModal.classList.add('hidden');
+    }
+
+    cancelStatusModalBtn.addEventListener('click', closeStatusModal);
+    cancelPhoneModalBtn.addEventListener('click', closePhoneModal);
+    cancelLocationModalBtn.addEventListener('click', closeLocationModal);
+    cancelMapChooserModalBtn.addEventListener('click', closeMapChooserModal);
+
+    // Status option click handler
+    statusOptionBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const orderId = statusOrderIdInput.value;
+            const selectedStatus = btn.getAttribute('data-status');
+            if (!orderId) return;
+
+            if (selectedStatus === 'واصل' || selectedStatus === 'راجع') {
+                // Delete permanently from deferred_orders collection
+                try {
+                    await deleteDeferredOrderDoc(orderId);
+                    closeStatusModal();
+                    await updateDeferredView();
+                } catch (error) {
+                    console.error('Error handling status deletion:', error);
+                }
+            } else {
+                // Status remains "مؤجل"
+                try {
+                    await updateDeferredOrderDoc(orderId, { status: selectedStatus });
+                    closeStatusModal();
+                    await updateDeferredView();
+                } catch (error) {
+                    console.error('Error updating status:', error);
+                }
+            }
+        });
+    });
+
+    // Location Form Submission
+    locationForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const orderId = locationOrderIdInput.value;
+        const url = locationUrlInput.value.trim();
+        if (!orderId || !url) return;
+
+        try {
+            await updateDeferredOrderDoc(orderId, { location: url });
+            closeLocationModal();
+            await updateDeferredView();
+        } catch (error) {
+            console.error('Error updating location link:', error);
+        }
+    });
+
+    // Deferred Orders Form Submission (Create / Update)
+    deferredForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const name = customerNameInput.value.trim();
+        const phone = customerPhoneInput.value.trim();
+        const address = customerAddressInput.value.trim();
+        const location = customerLocationInput.value.trim();
+        const notes = customerNotesInput.value.trim();
+        const editId = editDeferredIdInput.value;
+
+        if (!name || !phone) {
+            alert('يرجى ملء الاسم ورقم الهاتف.');
+            return;
+        }
+
+        try {
+            if (editId) {
+                await updateDeferredOrderDoc(editId, {
+                    name,
+                    phone,
+                    address: address || '',
+                    location: location || '',
+                    notes: notes || ''
+                });
+                alert('تم تحديث الطلب المؤجل بنجاح!');
+            } else {
+                const newOrder = {
+                    name,
+                    phone,
+                    address: address || '',
+                    location: location || '',
+                    notes: notes || '',
+                    status: 'مؤجل',
+                    createdAt: Date.now()
+                };
+                await saveDeferredOrder(newOrder);
+                alert('تم حفظ الطلب المؤجل بنجاح!');
+            }
+        } catch (error) {
+            return;
+        }
+
+        closeDeferredFormModal();
+        await updateDeferredView();
+    });
+
+    // Render Deferred Orders List
+    async function updateDeferredView() {
+        const orders = await getDeferredOrders();
+        deferredListEl.innerHTML = '';
+
+        if (!orders || orders.length === 0) {
+            noDeferredMsg.classList.remove('hidden');
+            return;
+        }
+
+        noDeferredMsg.classList.add('hidden');
+
+        // Sort descending by createdAt
+        const sortedOrders = orders.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        sortedOrders.forEach(order => {
+            const card = document.createElement('div');
+            card.className = 'deferred-card';
+
+            const statusLabel = order.status || 'مؤجل';
+
+            const safeName = escapeHtml(order.name);
+            const safePhone = escapeHtml(order.phone);
+            const safeAddress = escapeHtml(order.address);
+            const safeNotes = escapeHtml(order.notes);
+            const safeLocation = escapeHtml(order.location);
+
+            card.innerHTML = `
+                <div class="deferred-card-header">
+                    <div class="deferred-customer-name">
+                        👤 ${safeName}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="deferred-badge">${statusLabel}</span>
+                        <button type="button" class="btn-card-edit">تعديل</button>
+                        <button type="button" class="btn-card-delete">حذف</button>
+                    </div>
+                </div>
+                <div class="deferred-card-body">
+                    ${safeAddress ? `
+                        <div class="deferred-info-row">
+                            <span class="deferred-info-label">العنوان:</span>
+                            <span class="deferred-info-value">${safeAddress}</span>
+                        </div>
+                    ` : ''}
+                    ${safeNotes ? `
+                        <div class="deferred-info-row">
+                            <span class="deferred-info-label">الملاحظات:</span>
+                            <span class="deferred-info-value">${safeNotes}</span>
+                        </div>
+                    ` : ''}
+                    <div class="deferred-actions">
+                        <button type="button" class="btn-card-action btn-phone-trigger">
+                            📞 ${safePhone}
+                        </button>
+                        ${safeLocation ? `
+                            <button type="button" class="btn-card-action btn-location-trigger">
+                                🗺️ الموقع على الخريطة
+                            </button>
+                        ` : `
+                            <button type="button" class="btn-card-action btn-location-missing">
+                                ➕ إضافة موقع
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `;
+
+            // Click Customer Name -> status modal
+            const nameEl = card.querySelector('.deferred-customer-name');
+            nameEl.addEventListener('click', () => {
+                openStatusModal(order);
+            });
+
+            // Click Edit button -> populate form, show floating modal, change title to update
+            const editBtn = card.querySelector('.btn-card-edit');
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                editDeferredIdInput.value = order.id;
+                customerNameInput.value = order.name || '';
+                customerPhoneInput.value = order.phone || '';
+                customerAddressInput.value = order.address || '';
+                customerLocationInput.value = order.location || '';
+                customerNotesInput.value = order.notes || '';
+                deferredFormTitle.innerText = 'تعديل الطلب المؤجل';
+                deferredSubmitBtn.innerText = 'تحديث الطلب';
+                openDeferredFormModal();
+            });
+
+            // Click Delete button -> confirm and delete from Firestore
+            const deleteBtn = card.querySelector('.btn-card-delete');
+            deleteBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm(`هل أنت متأكد من حذف طلب العميل (${order.name})؟`)) {
+                    try {
+                        await deleteDeferredOrderDoc(order.id);
+                        await updateDeferredView();
+                    } catch (error) {
+                        console.error('Error deleting deferred order:', error);
+                    }
+                }
+            });
+
+            // Click Phone -> phone action modal
+            const phoneBtn = card.querySelector('.btn-phone-trigger');
+            phoneBtn.addEventListener('click', () => {
+                openPhoneModal(order.name, order.phone);
+            });
+
+            // Click Location Trigger -> smart location chooser modal
+            const locTriggerBtn = card.querySelector('.btn-location-trigger');
+            if (locTriggerBtn) {
+                locTriggerBtn.addEventListener('click', () => {
+                    openMapChooserModal(order.location);
+                });
+            }
+
+            // Click Location Missing -> location input modal
+            const locMissingBtn = card.querySelector('.btn-location-missing');
+            if (locMissingBtn) {
+                locMissingBtn.addEventListener('click', () => {
+                    openLocationModal(order.id);
+                });
+            }
+
+            deferredListEl.appendChild(card);
+        });
+    }
+
     // Initialization
     async function init() {
         setLoading(true);
@@ -601,6 +1055,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await updateMainDashboard();
             await updateHistoryView();
             await updatePaymentsView();
+            await updateDeferredView();
         } catch (error) {
             console.error('Initialization error:', error);
         } finally {

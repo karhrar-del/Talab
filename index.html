@@ -194,6 +194,33 @@
         </div>
     </div>
 
+    <!-- Screen 4: Deferred Orders View -->
+    <div id="screen-deferred" class="screen">
+        <div class="container pb-nav">
+            <header>
+                <h1>الطلبات المؤجلة</h1>
+                <p>متابعة وتحديث الطلبات المؤجلة</p>
+            </header>
+            <main>
+                <div style="margin-bottom: 1.25rem;">
+                    <button type="button" id="toggle-deferred-form-btn" class="btn-primary" style="margin-top: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 1.1rem;">
+                        <span>إضافة طلب</span> <span>+</span>
+                    </button>
+                </div>
+
+                <section class="card history-section">
+                    <h2>الطلبات المؤجلة الحالية</h2>
+                    <div id="deferred-list" class="deferred-list">
+                        <!-- Deferred order cards will be injected here -->
+                    </div>
+                    <div id="no-deferred-msg" class="hidden"
+                        style="text-align: center; color: var(--text-muted); padding: 1rem 0;">لا توجد طلبات مؤجلة حالياً.
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
     <!-- Bottom Navigation Bar -->
     <nav class="bottom-nav">
         <button class="nav-item active" data-target="screen-main">
@@ -207,6 +234,10 @@
         <button class="nav-item" data-target="screen-payments">
             <span class="nav-icon">💰</span>
             <span>المدفوعات</span>
+        </button>
+        <button class="nav-item" data-target="screen-deferred">
+            <span class="nav-icon">📦</span>
+            <span>المؤجل</span>
         </button>
     </nav>
 
@@ -245,6 +276,116 @@
                     <button type="button" id="cancel-edit" class="btn-secondary">إلغاء</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Deferred Status Update Modal -->
+    <div id="deferred-status-modal" class="modal hidden">
+        <div class="modal-content card">
+            <h2>تحديث حالة الطلب</h2>
+            <p id="status-customer-name" style="font-weight: 700; margin-bottom: 1rem; color: var(--primary);"></p>
+            <input type="hidden" id="status-order-id">
+            <div class="form-group">
+                <label>اختر الحالة الجديدة:</label>
+                <div class="status-options">
+                    <button type="button" class="btn-status-option btn-status-deferred" data-status="مؤجل">مؤجل (إبقاء الطلب)</button>
+                    <button type="button" class="btn-status-option btn-status-delivered" data-status="واصل">واصل (تم التوصيل - حذف)</button>
+                    <button type="button" class="btn-status-option btn-status-returned" data-status="راجع">راجع (مرتجع - حذف)</button>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 1rem;">
+                <button type="button" id="cancel-status-modal" class="btn-secondary" style="margin-top: 0;">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deferred Phone Action Modal -->
+    <div id="deferred-phone-modal" class="modal hidden">
+        <div class="modal-content card">
+            <h2>تواصل مع العميل</h2>
+            <p id="phone-modal-name" style="font-weight: 700; margin-bottom: 0.5rem; text-align: center; color: var(--primary);"></p>
+            <p id="phone-modal-number" style="color: var(--text-muted); margin-bottom: 1.5rem; direction: ltr; text-align: center; font-size: 1.2rem; font-weight: 700;"></p>
+            <div class="phone-action-buttons">
+                <a id="phone-call-btn" href="#" class="btn-phone-action btn-call">📞 اتصال مباشر</a>
+                <a id="phone-wa-btn" href="#" target="_blank" class="btn-phone-action btn-whatsapp">💬 واتساب</a>
+            </div>
+            <div class="modal-actions" style="margin-top: 1rem;">
+                <button type="button" id="cancel-phone-modal" class="btn-secondary" style="margin-top: 0;">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deferred Location Input Modal -->
+    <div id="deferred-location-modal" class="modal hidden">
+        <div class="modal-content card">
+            <h2>إضافة رابط الموقع</h2>
+            <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.95rem;">لم يتم تحديد رابط موقع لهذا الطلب. يرجى إدخال رابط الموقع:</p>
+            <form id="location-form">
+                <input type="hidden" id="location-order-id">
+                <div class="form-group">
+                    <label for="location-url-input">رابط الموقع (Google Maps)</label>
+                    <input type="url" id="location-url-input" required placeholder="https://maps.google.com/...">
+                </div>
+                <div class="modal-actions" style="margin-top: 1rem;">
+                    <button type="submit" class="btn-primary" style="margin-top: 0;">حفظ الرابط</button>
+                    <button type="button" id="cancel-location-modal" class="btn-secondary" style="margin-top: 0;">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Deferred Add/Edit Order Floating Modal -->
+    <div id="deferred-form-modal" class="modal hidden">
+        <div class="modal-content card">
+            <h2 id="deferred-form-title">إضافة طلب مؤجل جديد</h2>
+            <form id="deferred-form">
+                <input type="hidden" id="edit-deferred-id" value="">
+                <div class="form-group">
+                    <label for="customer-name">اسم العميل</label>
+                    <input type="text" id="customer-name" name="customer-name" required placeholder="أدخل اسم العميل">
+                </div>
+                <div class="form-group">
+                    <label for="customer-phone">رقم الهاتف</label>
+                    <input type="tel" id="customer-phone" name="customer-phone" required placeholder="077XXXXXXXX">
+                </div>
+                <div class="form-group">
+                    <label for="customer-address">العنوان</label>
+                    <input type="text" id="customer-address" name="customer-address" placeholder="المنطقة / الشارع / تفاصيل العنوان">
+                </div>
+                <div class="form-group">
+                    <label for="customer-location">رابط الموقع (Google Maps)</label>
+                    <input type="url" id="customer-location" name="customer-location" placeholder="https://maps.google.com/...">
+                </div>
+                <div class="form-group">
+                    <label for="customer-notes">الملاحظات</label>
+                    <input type="text" id="customer-notes" name="customer-notes" placeholder="ملاحظات إضافية عن الطلب">
+                </div>
+                <div class="modal-actions" style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button type="submit" id="deferred-submit-btn" class="btn-primary" style="margin-top: 0;">حفظ الطلب المؤجل</button>
+                    <button type="button" id="cancel-deferred-form-btn" class="btn-secondary" style="margin-top: 0;">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Deferred Smart Location Chooser Modal (Deep Links) -->
+    <div id="map-chooser-modal" class="modal hidden">
+        <div class="modal-content card">
+            <h2>فتح الموقع بواسطة:</h2>
+            <div class="map-chooser-options" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+                <a id="map-option-google" href="#" class="btn-card-action btn-map-choice" target="_blank" style="justify-content: center; padding: 0.85rem; font-size: 1rem;">
+                    📍 Google Maps
+                </a>
+                <a id="map-option-apple" href="#" class="btn-card-action btn-map-choice" target="_blank" style="justify-content: center; padding: 0.85rem; font-size: 1rem;">
+                    🍏 Apple Maps
+                </a>
+                <a id="map-option-waze" href="#" class="btn-card-action btn-map-choice" target="_blank" style="justify-content: center; padding: 0.85rem; font-size: 1rem;">
+                    🚗 Waze
+                </a>
+            </div>
+            <div class="modal-actions" style="margin-top: 1rem;">
+                <button type="button" id="cancel-map-chooser-modal" class="btn-secondary" style="margin-top: 0;">إلغاء</button>
+            </div>
         </div>
     </div>
 
