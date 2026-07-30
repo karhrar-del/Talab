@@ -324,17 +324,18 @@ header p {
 
 /* Bottom Navigation */
 .bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
     height: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
     background: var(--card-bg);
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: space-around;
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    z-index: 9999;
+    z-index: 9999 !important;
 }
 
 .nav-item {
@@ -1046,7 +1047,7 @@ header p {
 /* Table View Row (Excel-like spreadsheet row) */
 .tracking-table-row {
     display: grid;
-    grid-template-columns: 35% 35% 30%;
+    grid-template-columns: 30px 1fr 1fr 1fr;
     gap: 0;
     border: 1px solid #e5e7eb;
     background: var(--card-bg);
@@ -1104,6 +1105,22 @@ header p {
     display: flex;
     flex-direction: column;
     gap: 3px;
+}
+
+.tt-drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+.tt-drag-handle:active {
+    cursor: grabbing;
 }
 
 .tt-notes {

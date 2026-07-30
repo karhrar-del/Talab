@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc, enableIndexedDbPersistence, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // ---- Firebase Configuration ----
@@ -1131,7 +1131,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 address: address || '',
                 location_url: location_url || '',
                 notes: notes || '',
-                status: 'قيد التسليم'
+                status: 'قيد التسليم',
+                route_order: 0
             });
         } catch (error) {
             return;
@@ -1534,9 +1535,10 @@ document.addEventListener('DOMContentLoaded', () => {
             accordion.appendChild(header);
             accordion.appendChild(content);
 
-            byDate[date].forEach(order => {
+            byDate[date].sort((a, b) => (a.route_order || 0) - (b.route_order || 0)).forEach(order => {
                 const row = document.createElement('div');
                 row.className = 'tracking-table-row';
+                row.dataset.orderId = order.id;
 
                 const bg = tableStatusBg[order.status] || '';
                 if (bg) row.style.backgroundColor = bg;
@@ -1548,6 +1550,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const safeNotes = escapeHtml(order.notes);
 
                 row.innerHTML = `
+                    <div class="tt-col tt-drag-handle">☰</div>
                     <div class="tt-col tt-col-contact">
                         <div class="tt-name">${safeName}</div>
                         <div class="tt-phone">📞 ${safePhone}</div>
@@ -1607,6 +1610,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 content.appendChild(row);
+            });
+
+            // Initialize Sortable on this date group for drag-and-drop reordering
+            Sortable.create(content, {
+                handle: '.tt-drag-handle',
+                draggable: '.tracking-table-row',
+                animation: 150,
+                onEnd: async (evt) => {
+                    const container = evt.to;
+                    const rows = container.querySelectorAll('.tracking-table-row');
+                    const batch = writeBatch(db);
+
+                    rows.forEach((row, index) => {
+                        const orderId = row.dataset.orderId;
+                        if (orderId) {
+                            batch.update(doc(db, 'tracking_orders', orderId), { route_order: index });
+                        }
+                    });
+
+                    try {
+                        await batch.commit();
+                        cachedTrackingOrders = null;
+                    } catch (error) {
+                        console.error('Error saving route order:', error);
+                    }
+                }
             });
 
             trackingListEl.appendChild(accordion);
