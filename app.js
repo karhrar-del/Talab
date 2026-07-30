@@ -106,7 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---- In-Memory Cache ----
     let cachedLogs = null;
     let cachedPayments = null;
-    let cachedDeferredOrders = null;
+    let cachedTrackingOrders = null;
+    let cachedAreas = null;
 
     // Format Currency: Iraqi Dinar, Thousands Separator, 0 Decimal Places
     function formatCurrency(amount) {
@@ -215,59 +216,101 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Database - Deferred Orders (Firestore)
-    async function getDeferredOrders() {
+    // Database - Tracking Orders (Firestore)
+    async function getTrackingOrders() {
         try {
-            if (cachedDeferredOrders) return cachedDeferredOrders;
+            if (cachedTrackingOrders) return cachedTrackingOrders;
             setLoading(true);
-            const snapshot = await getDocs(collection(db, 'deferred_orders'));
-            cachedDeferredOrders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            return cachedDeferredOrders;
+            const snapshot = await getDocs(collection(db, 'tracking_orders'));
+            cachedTrackingOrders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            return cachedTrackingOrders;
         } catch (error) {
-            console.error('Error fetching deferred orders:', error);
-            alert('حدث خطأ أثناء تحميل الطلبات المؤجلة.');
+            console.error('Error fetching tracking orders:', error);
+            alert('حدث خطأ أثناء تحميل طلبات المتابعة.');
             return [];
         } finally {
             setLoading(false);
         }
     }
 
-    async function saveDeferredOrder(order) {
+    async function saveTrackingOrder(order) {
         try {
             setLoading(true);
-            await addDoc(collection(db, 'deferred_orders'), order);
-            cachedDeferredOrders = null;
+            await addDoc(collection(db, 'tracking_orders'), order);
+            cachedTrackingOrders = null;
         } catch (error) {
-            console.error('Error saving deferred order:', error);
-            alert('حدث خطأ أثناء حفظ الطلب المؤجل.');
+            console.error('Error saving tracking order:', error);
+            alert('حدث خطأ أثناء حفظ الطلب.');
             throw error;
         } finally {
             setLoading(false);
         }
     }
 
-    async function updateDeferredOrderDoc(id, data) {
+    async function updateTrackingOrder(id, data) {
         try {
             setLoading(true);
-            await updateDoc(doc(db, 'deferred_orders', id), data);
-            cachedDeferredOrders = null;
+            await updateDoc(doc(db, 'tracking_orders', id), data);
+            cachedTrackingOrders = null;
         } catch (error) {
-            console.error('Error updating deferred order:', error);
-            alert('حدث خطأ أثناء التحديث.');
+            console.error('Error updating tracking order:', error);
+            alert('حدث خطأ أثناء تحديث الطلب.');
             throw error;
         } finally {
             setLoading(false);
         }
     }
 
-    async function deleteDeferredOrderDoc(id) {
+    async function deleteTrackingOrder(id) {
         try {
             setLoading(true);
-            await deleteDoc(doc(db, 'deferred_orders', id));
-            cachedDeferredOrders = null;
+            await deleteDoc(doc(db, 'tracking_orders', id));
+            cachedTrackingOrders = null;
         } catch (error) {
-            console.error('Error deleting deferred order:', error);
+            console.error('Error deleting tracking order:', error);
             alert('حدث خطأ أثناء حذف الطلب.');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Database - Delivery Areas (Firestore)
+    async function getDeliveryAreas() {
+        try {
+            if (cachedAreas) return cachedAreas;
+            const snapshot = await getDocs(collection(db, 'delivery_areas'));
+            cachedAreas = snapshot.docs.map(d => ({ id: d.id, name: d.data().name }));
+            return cachedAreas;
+        } catch (error) {
+            console.error('Error fetching delivery areas:', error);
+            return [];
+        }
+    }
+
+    async function saveDeliveryArea(name) {
+        try {
+            setLoading(true);
+            const docRef = await addDoc(collection(db, 'delivery_areas'), { name });
+            cachedAreas = null;
+            return docRef.id;
+        } catch (error) {
+            console.error('Error saving delivery area:', error);
+            alert('حدث خطأ أثناء حفظ المنطقة.');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function deleteDeliveryArea(id) {
+        try {
+            setLoading(true);
+            await deleteDoc(doc(db, 'delivery_areas', id));
+            cachedAreas = null;
+        } catch (error) {
+            console.error('Error deleting delivery area:', error);
+            alert('حدث خطأ أثناء حذف المنطقة.');
             throw error;
         } finally {
             setLoading(false);
@@ -653,7 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('payment-submit-btn').innerText = 'حفظ الحركة';
     });
 
-    // ---- Helpers for Screen 4 (Deferred Orders) ----
+    // ---- Helpers for Screen 4 (Tracking) ----
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -673,12 +716,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return `https://wa.me/${cleaned}`;
     }
 
-    // ---- Extract Latitude & Longitude from Maps / WhatsApp URLs ----
+    // ---- Extract Latitude & Longitude from Maps / URLs ----
     function extractCoordinates(urlStr) {
         if (!urlStr) return null;
         try {
             const decoded = decodeURIComponent(urlStr);
-            // Matches coordinate pattern (e.g. 31.028078,46.236660, q=31.028078,46.236660, @31.028078,46.236660)
             const coordRegex = /(-?\d{1,2}\.\d+)\s*[\s,:]\s*(-?\d{1,3}\.\d+)/;
             const match = decoded.match(coordRegex);
             if (match) {
@@ -694,356 +736,511 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     }
 
-    // ---- Deferred Orders Elements ----
-    const toggleDeferredFormBtn = document.getElementById('toggle-deferred-form-btn');
-    const deferredFormModal = document.getElementById('deferred-form-modal');
-    const deferredFormTitle = document.getElementById('deferred-form-title');
-    const deferredForm = document.getElementById('deferred-form');
-    const editDeferredIdInput = document.getElementById('edit-deferred-id');
-    const customerNameInput = document.getElementById('customer-name');
-    const customerPhoneInput = document.getElementById('customer-phone');
-    const customerAddressInput = document.getElementById('customer-address');
-    const customerLocationInput = document.getElementById('customer-location');
-    const customerNotesInput = document.getElementById('customer-notes');
-    const deferredSubmitBtn = document.getElementById('deferred-submit-btn');
-    const cancelDeferredFormBtn = document.getElementById('cancel-deferred-form-btn');
-    const deferredListEl = document.getElementById('deferred-list');
-    const noDeferredMsg = document.getElementById('no-deferred-msg');
-
-    // Status Modal Elements
-    const deferredStatusModal = document.getElementById('deferred-status-modal');
-    const statusCustomerNameEl = document.getElementById('status-customer-name');
-    const statusOrderIdInput = document.getElementById('status-order-id');
-    const cancelStatusModalBtn = document.getElementById('cancel-status-modal');
-    const statusOptionBtns = document.querySelectorAll('.btn-status-option');
-
-    // Phone Modal Elements
-    const deferredPhoneModal = document.getElementById('deferred-phone-modal');
-    const phoneModalNameEl = document.getElementById('phone-modal-name');
-    const phoneModalNumberEl = document.getElementById('phone-modal-number');
-    const phoneCallBtn = document.getElementById('phone-call-btn');
-    const phoneWaBtn = document.getElementById('phone-wa-btn');
-    const cancelPhoneModalBtn = document.getElementById('cancel-phone-modal');
-
-    // Location Modal Elements
-    const deferredLocationModal = document.getElementById('deferred-location-modal');
-    const locationForm = document.getElementById('location-form');
-    const locationOrderIdInput = document.getElementById('location-order-id');
-    const locationUrlInput = document.getElementById('location-url-input');
-    const cancelLocationModalBtn = document.getElementById('cancel-location-modal');
-
-    // Smart Map Chooser Modal Elements
-    const mapChooserModal = document.getElementById('map-chooser-modal');
-    const mapOptionGoogle = document.getElementById('map-option-google');
-    const mapOptionApple = document.getElementById('map-option-apple');
-    const mapOptionWaze = document.getElementById('map-option-waze');
-    const cancelMapChooserModalBtn = document.getElementById('cancel-map-chooser-modal');
-
-    // ---- Toggle / Form Helpers ----
-    function resetDeferredForm() {
-        deferredForm.reset();
-        editDeferredIdInput.value = '';
-        deferredFormTitle.innerText = 'إضافة طلب مؤجل جديد';
-        deferredSubmitBtn.innerText = 'حفظ الطلب المؤجل';
+    // ---- Area Helpers ----
+    async function populateAreaDropdowns() {
+        const areas = await getDeliveryAreas();
+        const selects = [trackingAddArea, trackingEditArea];
+        selects.forEach(select => {
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">اختر المنطقة</option>';
+            areas.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.name;
+                opt.textContent = a.name;
+                select.appendChild(opt);
+            });
+            if (currentVal && [...select.options].some(o => o.value === currentVal)) {
+                select.value = currentVal;
+            }
+        });
     }
 
-    function openDeferredFormModal() {
-        deferredFormModal.classList.remove('hidden');
+    // ---- Tracking DOM References ----
+    const trackingListEl = document.getElementById('tracking-list');
+    const noTrackingMsg = document.getElementById('no-tracking-msg');
+
+    const trackingContactModal = document.getElementById('tracking-contact-modal');
+    const trackingContactName = document.getElementById('tracking-contact-name');
+    const trackingContactPhone = document.getElementById('tracking-contact-phone');
+    const trackingCallBtn = document.getElementById('tracking-call-btn');
+    const trackingWaBtn = document.getElementById('tracking-wa-btn');
+    const trackingCloseContact = document.getElementById('tracking-close-contact');
+
+    const trackingLocationModal = document.getElementById('tracking-location-modal');
+    const trackingLocationAddress = document.getElementById('tracking-location-address');
+    const trackingLocationButtons = document.getElementById('tracking-location-buttons');
+    const trackingCloseLocation = document.getElementById('tracking-close-location');
+
+    const trackingAddModal = document.getElementById('tracking-add-modal');
+    const trackingAddForm = document.getElementById('tracking-add-form');
+    const trackingAddDate = document.getElementById('track-add-date');
+    const trackingAddArea = document.getElementById('track-add-area');
+    const trackingAddCustomer = document.getElementById('track-add-customer');
+    const trackingAddPhone = document.getElementById('track-add-phone');
+    const trackingAddAddress = document.getElementById('track-add-address');
+    const trackingAddLocation = document.getElementById('track-add-location');
+    const trackingAddNotes = document.getElementById('track-add-notes');
+    const trackingCancelAdd = document.getElementById('tracking-cancel-add');
+
+    const trackingEditModal = document.getElementById('tracking-edit-modal');
+    const trackingEditForm = document.getElementById('tracking-edit-form');
+    const trackingEditId = document.getElementById('track-edit-id');
+    const trackingEditDate = document.getElementById('track-edit-date');
+    const trackingEditArea = document.getElementById('track-edit-area');
+    const trackingEditCustomer = document.getElementById('track-edit-customer');
+    const trackingEditPhone = document.getElementById('track-edit-phone');
+    const trackingEditAddress = document.getElementById('track-edit-address');
+    const trackingEditLocation = document.getElementById('track-edit-location');
+    const trackingEditNotes = document.getElementById('track-edit-notes');
+    const trackingCancelEdit = document.getElementById('tracking-cancel-edit');
+
+    // ---- Modal Helpers ----
+    function openContactModal(order) {
+        const phone = order.phone || '';
+        trackingContactName.innerText = order.customer_name || '';
+        trackingContactPhone.innerText = phone;
+        trackingCallBtn.href = `tel:${phone}`;
+        trackingWaBtn.href = formatWhatsAppLink(phone);
+        trackingContactModal.classList.remove('hidden');
     }
 
-    function closeDeferredFormModal() {
-        deferredFormModal.classList.add('hidden');
-        resetDeferredForm();
+    function closeContactModal() {
+        trackingContactModal.classList.add('hidden');
     }
 
-    toggleDeferredFormBtn.addEventListener('click', () => {
-        resetDeferredForm();
-        openDeferredFormModal();
-    });
+    function openLocationModal(order) {
+        trackingLocationAddress.innerText = order.address || '';
+        trackingLocationButtons.innerHTML = '';
 
-    cancelDeferredFormBtn.addEventListener('click', closeDeferredFormModal);
-
-    // ---- Modal Helper Functions ----
-    function openStatusModal(order) {
-        statusCustomerNameEl.innerText = `العميل: ${order.name}`;
-        statusOrderIdInput.value = order.id;
-        deferredStatusModal.classList.remove('hidden');
-    }
-
-    function closeStatusModal() {
-        deferredStatusModal.classList.add('hidden');
-        statusOrderIdInput.value = '';
-    }
-
-    function openPhoneModal(name, phone) {
-        phoneModalNameEl.innerText = name;
-        phoneModalNumberEl.innerText = phone;
-        phoneCallBtn.href = `tel:${phone}`;
-        phoneWaBtn.href = formatWhatsAppLink(phone);
-        deferredPhoneModal.classList.remove('hidden');
-    }
-
-    function closePhoneModal() {
-        deferredPhoneModal.classList.add('hidden');
-    }
-
-    function openLocationModal(orderId) {
-        locationOrderIdInput.value = orderId;
-        locationUrlInput.value = '';
-        deferredLocationModal.classList.remove('hidden');
-    }
-
-    function closeLocationModal() {
-        deferredLocationModal.classList.add('hidden');
-        locationOrderIdInput.value = '';
-    }
-
-    function openMapChooserModal(rawUrl) {
-        const coords = extractCoordinates(rawUrl);
+        const coords = extractCoordinates(order.location_url);
+        const encodedAddr = encodeURIComponent(order.address || '');
 
         if (coords) {
             const { lat, lng } = coords;
-            mapOptionGoogle.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-            mapOptionApple.href = `https://maps.apple.com/?q=${lat},${lng}&ll=${lat},${lng}`;
-            mapOptionWaze.href = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+            addMapButton('🗺️ Google Maps', `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+            addMapButton('🍏 Apple Maps', `https://maps.apple.com/?q=${lat},${lng}&ll=${lat},${lng}`);
+            addMapButton('🚗 Waze', `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+        } else if (order.location_url) {
+            addMapButton('🗺️ فتح الرابط', order.location_url);
         } else {
-            // Fallback to rawUrl if coordinates are not extractable
-            mapOptionGoogle.href = rawUrl;
-            mapOptionApple.href = rawUrl;
-            mapOptionWaze.href = rawUrl;
+            trackingLocationButtons.innerHTML = '<p style="color: var(--text-muted); padding: 0.5rem 0;">لا يوجد رابط موقع متاح</p>';
         }
 
-        mapOptionGoogle.onclick = null;
-        mapChooserModal.classList.remove('hidden');
+        trackingLocationModal.classList.remove('hidden');
     }
 
-    function closeMapChooserModal() {
-        mapChooserModal.classList.add('hidden');
+    function addMapButton(label, href) {
+        const btn = document.createElement('a');
+        btn.className = 'tracking-map-btn';
+        btn.href = href;
+        btn.target = '_blank';
+        btn.innerText = label;
+        trackingLocationButtons.appendChild(btn);
     }
 
-    cancelStatusModalBtn.addEventListener('click', closeStatusModal);
-    cancelPhoneModalBtn.addEventListener('click', closePhoneModal);
-    cancelLocationModalBtn.addEventListener('click', closeLocationModal);
-    cancelMapChooserModalBtn.addEventListener('click', closeMapChooserModal);
+    function closeLocationModalFn() {
+        trackingLocationModal.classList.add('hidden');
+    }
 
-    // Status option click handler
-    statusOptionBtns.forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const orderId = statusOrderIdInput.value;
-            const selectedStatus = btn.getAttribute('data-status');
-            if (!orderId) return;
+    function resetAddForm() {
+        trackingAddForm.reset();
+        trackingAddDate.value = new Date().toISOString().split('T')[0];
+    }
 
-            if (selectedStatus === 'واصل' || selectedStatus === 'راجع') {
-                // Delete permanently from deferred_orders collection
-                try {
-                    await deleteDeferredOrderDoc(orderId);
-                    closeStatusModal();
-                    await updateDeferredView();
-                } catch (error) {
-                    console.error('Error handling status deletion:', error);
-                }
-            } else {
-                // Status remains "مؤجل"
-                try {
-                    await updateDeferredOrderDoc(orderId, { status: selectedStatus });
-                    closeStatusModal();
-                    await updateDeferredView();
-                } catch (error) {
-                    console.error('Error updating status:', error);
-                }
-            }
+    function openAddModal(date) {
+        resetAddForm();
+        if (date) trackingAddDate.value = date;
+        populateAreaDropdowns().then(() => {
+            trackingAddModal.classList.remove('hidden');
         });
-    });
+    }
 
-    // Location Form Submission
-    locationForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const orderId = locationOrderIdInput.value;
-        const url = locationUrlInput.value.trim();
-        if (!orderId || !url) return;
+    function closeAddModal() {
+        trackingAddModal.classList.add('hidden');
+        resetAddForm();
+    }
 
-        try {
-            await updateDeferredOrderDoc(orderId, { location: url });
-            closeLocationModal();
-            await updateDeferredView();
-        } catch (error) {
-            console.error('Error updating location link:', error);
-        }
-    });
+    function openEditModalTracking(order) {
+        trackingEditId.value = order.id;
+        trackingEditDate.value = order.date || '';
+        trackingEditCustomer.value = order.customer_name || '';
+        trackingEditPhone.value = order.phone || '';
+        trackingEditAddress.value = order.address || '';
+        trackingEditLocation.value = order.location_url || '';
+        trackingEditNotes.value = order.notes || '';
+        populateAreaDropdowns().then(() => {
+            trackingEditArea.value = order.area || '';
+            trackingEditModal.classList.remove('hidden');
+        });
+    }
 
-    // Deferred Orders Form Submission (Create / Update)
-    deferredForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    function closeEditModalTracking() {
+        trackingEditModal.classList.add('hidden');
+    }
 
-        const name = customerNameInput.value.trim();
-        const phone = customerPhoneInput.value.trim();
-        const address = customerAddressInput.value.trim();
-        const location = customerLocationInput.value.trim();
-        const notes = customerNotesInput.value.trim();
-        const editId = editDeferredIdInput.value;
+    trackingCloseContact.addEventListener('click', closeContactModal);
+    trackingCloseLocation.addEventListener('click', closeLocationModalFn);
+    trackingCancelAdd.addEventListener('click', closeAddModal);
+    trackingCancelEdit.addEventListener('click', closeEditModalTracking);
 
-        if (!name || !phone) {
-            alert('يرجى ملء الاسم ورقم الهاتف.');
+    const trackingAddMainBtn = document.getElementById('tracking-add-btn');
+    if (trackingAddMainBtn) {
+        trackingAddMainBtn.addEventListener('click', () => openAddModal());
+    }
+
+    // ---- Manage Areas Modal ----
+    const manageAreasBtn = document.getElementById('manage-areas-btn');
+    const manageAreasModal = document.getElementById('manage-areas-modal');
+    const manageAreasList = document.getElementById('manage-areas-list');
+    const manageAreasInput = document.getElementById('manage-areas-input');
+    const manageAreasAddBtn = document.getElementById('manage-areas-add-btn');
+    const manageAreasClose = document.getElementById('manage-areas-close');
+    const manageAreasCancel = document.getElementById('manage-areas-cancel');
+
+    function openManageAreasModal() {
+        populateAreasList();
+        manageAreasModal.classList.remove('hidden');
+    }
+
+    function closeManageAreasModal() {
+        manageAreasModal.classList.add('hidden');
+    }
+
+    async function populateAreasList() {
+        const areas = await getDeliveryAreas();
+        manageAreasList.innerHTML = '';
+        if (!areas || areas.length === 0) {
+            manageAreasList.innerHTML = '<p style="color: var(--text-muted); text-align: center;">لا توجد مناطق مضافة</p>';
             return;
         }
-
-        try {
-            if (editId) {
-                await updateDeferredOrderDoc(editId, {
-                    name,
-                    phone,
-                    address: address || '',
-                    location: location || '',
-                    notes: notes || ''
-                });
-                alert('تم تحديث الطلب المؤجل بنجاح!');
-            } else {
-                const newOrder = {
-                    name,
-                    phone,
-                    address: address || '',
-                    location: location || '',
-                    notes: notes || '',
-                    status: 'مؤجل',
-                    createdAt: Date.now()
-                };
-                await saveDeferredOrder(newOrder);
-                alert('تم حفظ الطلب المؤجل بنجاح!');
-            }
-        } catch (error) {
-            return;
-        }
-
-        closeDeferredFormModal();
-        await updateDeferredView();
-    });
-
-    // Render Deferred Orders List
-    async function updateDeferredView() {
-        const orders = await getDeferredOrders();
-        deferredListEl.innerHTML = '';
-
-        if (!orders || orders.length === 0) {
-            noDeferredMsg.classList.remove('hidden');
-            return;
-        }
-
-        noDeferredMsg.classList.add('hidden');
-
-        // Sort descending by createdAt
-        const sortedOrders = orders.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-        sortedOrders.forEach(order => {
-            const card = document.createElement('div');
-            card.className = 'deferred-card';
-
-            const statusLabel = order.status || 'مؤجل';
-
-            const safeName = escapeHtml(order.name);
-            const safePhone = escapeHtml(order.phone);
-            const safeAddress = escapeHtml(order.address);
-            const safeNotes = escapeHtml(order.notes);
-            const safeLocation = escapeHtml(order.location);
-
-            card.innerHTML = `
-                <div class="deferred-card-header">
-                    <div class="deferred-customer-name">
-                        👤 ${safeName}
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="deferred-badge">${statusLabel}</span>
-                        <button type="button" class="btn-card-edit">تعديل</button>
-                        <button type="button" class="btn-card-delete">حذف</button>
-                    </div>
-                </div>
-                <div class="deferred-card-body">
-                    ${safeAddress ? `
-                        <div class="deferred-info-row">
-                            <span class="deferred-info-label">العنوان:</span>
-                            <span class="deferred-info-value">${safeAddress}</span>
-                        </div>
-                    ` : ''}
-                    ${safeNotes ? `
-                        <div class="deferred-info-row">
-                            <span class="deferred-info-label">الملاحظات:</span>
-                            <span class="deferred-info-value">${safeNotes}</span>
-                        </div>
-                    ` : ''}
-                    <div class="deferred-actions">
-                        <button type="button" class="btn-card-action btn-phone-trigger">
-                            📞 ${safePhone}
-                        </button>
-                        ${safeLocation ? `
-                            <button type="button" class="btn-card-action btn-location-trigger">
-                                🗺️ الموقع على الخريطة
-                            </button>
-                        ` : `
-                            <button type="button" class="btn-card-action btn-location-missing">
-                                ➕ إضافة موقع
-                            </button>
-                        `}
-                    </div>
-                </div>
+        areas.forEach(area => {
+            const item = document.createElement('div');
+            item.className = 'manage-area-item';
+            item.innerHTML = `
+                <span>${area.name}</span>
+                <button type="button" class="manage-area-delete-btn" data-id="${area.id}" data-name="${area.name}">🗑️</button>
             `;
-
-            // Click Customer Name -> status modal
-            const nameEl = card.querySelector('.deferred-customer-name');
-            nameEl.addEventListener('click', () => {
-                openStatusModal(order);
-            });
-
-            // Click Edit button -> populate form, show floating modal, change title to update
-            const editBtn = card.querySelector('.btn-card-edit');
-            editBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                editDeferredIdInput.value = order.id;
-                customerNameInput.value = order.name || '';
-                customerPhoneInput.value = order.phone || '';
-                customerAddressInput.value = order.address || '';
-                customerLocationInput.value = order.location || '';
-                customerNotesInput.value = order.notes || '';
-                deferredFormTitle.innerText = 'تعديل الطلب المؤجل';
-                deferredSubmitBtn.innerText = 'تحديث الطلب';
-                openDeferredFormModal();
-            });
-
-            // Click Delete button -> confirm and delete from Firestore
-            const deleteBtn = card.querySelector('.btn-card-delete');
-            deleteBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (confirm(`هل أنت متأكد من حذف طلب العميل (${order.name})؟`)) {
+            manageAreasList.appendChild(item);
+        });
+        manageAreasList.querySelectorAll('.manage-area-delete-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.id;
+                const name = btn.dataset.name;
+                if (confirm(`هل أنت متأكد من حذف المنطقة (${name})؟`)) {
                     try {
-                        await deleteDeferredOrderDoc(order.id);
-                        await updateDeferredView();
-                    } catch (error) {
-                        console.error('Error deleting deferred order:', error);
+                        await deleteDeliveryArea(id);
+                        await populateAreasList();
+                        await populateAreaDropdowns();
+                    } catch (e) {
+                        console.error('Error deleting area:', e);
                     }
                 }
             });
+        });
+    }
 
-            // Click Phone -> phone action modal
-            const phoneBtn = card.querySelector('.btn-phone-trigger');
-            phoneBtn.addEventListener('click', () => {
-                openPhoneModal(order.name, order.phone);
+    if (manageAreasBtn) {
+        manageAreasBtn.addEventListener('click', openManageAreasModal);
+    }
+    if (manageAreasClose) {
+        manageAreasClose.addEventListener('click', closeManageAreasModal);
+    }
+    if (manageAreasCancel) {
+        manageAreasCancel.addEventListener('click', closeManageAreasModal);
+    }
+    if (manageAreasAddBtn && manageAreasInput) {
+        manageAreasAddBtn.addEventListener('click', async () => {
+            const name = manageAreasInput.value.trim();
+            if (!name) {
+                alert('يرجى إدخال اسم المنطقة.');
+                return;
+            }
+            try {
+                await saveDeliveryArea(name);
+                manageAreasInput.value = '';
+                await populateAreasList();
+                await populateAreaDropdowns();
+            } catch (e) {
+                console.error('Error adding area:', e);
+            }
+        });
+        manageAreasInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                manageAreasAddBtn.click();
+            }
+        });
+    }
+
+    // ---- Tracking Add Form Submit ----
+    trackingAddForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const date = trackingAddDate.value;
+        const area = trackingAddArea.value.trim();
+        const customer_name = trackingAddCustomer.value.trim();
+        const phone = trackingAddPhone.value.trim();
+        const address = trackingAddAddress.value.trim();
+        const location_url = trackingAddLocation.value.trim();
+        const notes = trackingAddNotes.value.trim();
+
+        if (!date || !area || !customer_name || !phone) {
+            alert('يرجى ملء التاريخ والمنطقة واسم العميل ورقم الهاتف.');
+            return;
+        }
+
+        try {
+            await saveTrackingOrder({
+                date,
+                area,
+                customer_name,
+                phone,
+                address: address || '',
+                location_url: location_url || '',
+                notes: notes || '',
+                status: 'قيد التسليم'
+            });
+        } catch (error) {
+            return;
+        }
+        alert('تم إضافة الطلب بنجاح!');
+        closeAddModal();
+        await updateTrackingView();
+    });
+
+    // ---- Tracking Edit Form Submit ----
+    trackingEditForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = trackingEditId.value;
+        const date = trackingEditDate.value;
+        const area = trackingEditArea.value.trim();
+        const customer_name = trackingEditCustomer.value.trim();
+        const phone = trackingEditPhone.value.trim();
+        const address = trackingEditAddress.value.trim();
+        const location_url = trackingEditLocation.value.trim();
+        const notes = trackingEditNotes.value.trim();
+
+        if (!id || !date || !area || !customer_name || !phone) {
+            alert('يرجى ملء جميع الحقول المطلوبة.');
+            return;
+        }
+
+        try {
+            await updateTrackingOrder(id, {
+                date,
+                area,
+                customer_name,
+                phone,
+                address: address || '',
+                location_url: location_url || '',
+                notes: notes || ''
+            });
+        } catch (error) {
+            return;
+        }
+        alert('تم تحديث الطلب بنجاح!');
+        closeEditModalTracking();
+        await updateTrackingView();
+    });
+
+    // ---- Create Order Card ----
+    function createTrackingOrderCard(order) {
+        const card = document.createElement('div');
+        card.className = 'tracking-order-card';
+        card.dataset.id = order.id;
+
+        const statusColors = {
+            'قيد التسليم': '#059669',
+            'مؤجل': '#d97706',
+            'راجع': '#dc2626',
+            'واصل': '#1d4ed8'
+        };
+
+        const safeName = escapeHtml(order.customer_name);
+        const safePhone = escapeHtml(order.phone);
+        const safeAddress = escapeHtml(order.address);
+
+        // Extract just phone digits for display
+        const phoneDisplay = order.phone || '';
+
+        card.innerHTML = `
+            <div class="tracking-card-header">
+                <span class="tracking-customer-name">${safeName}</span>
+                <span class="tracking-status-badge" style="background: ${statusColors[order.status] || '#6b7280'}">${escapeHtml(order.status)}</span>
+            </div>
+            <div class="tracking-card-body">
+                <div class="tracking-card-phone">📞 ${phoneDisplay}</div>
+                <div class="tracking-card-address">📍 ${safeAddress || 'لا يوجد عنوان'}</div>
+                ${order.notes ? `<div class="tracking-card-notes">📝 ${escapeHtml(order.notes)}</div>` : ''}
+            </div>
+            <div class="tracking-card-actions">
+                <select class="tracking-status-select">
+                    <option value="قيد التسليم" ${order.status === 'قيد التسليم' ? 'selected' : ''}>قيد التسليم</option>
+                    <option value="مؤجل" ${order.status === 'مؤجل' ? 'selected' : ''}>مؤجل</option>
+                    <option value="راجع" ${order.status === 'راجع' ? 'selected' : ''}>راجع</option>
+                    <option value="واصل" ${order.status === 'واصل' ? 'selected' : ''}>واصل</option>
+                </select>
+                <button class="tracking-edit-btn">تعديل</button>
+                <button class="tracking-delete-btn">🗑️ تصفية</button>
+            </div>
+        `;
+
+        // Customer name -> contact modal
+        card.querySelector('.tracking-customer-name').addEventListener('click', () => {
+            openContactModal(order);
+        });
+
+        // Phone -> contact modal
+        card.querySelector('.tracking-card-phone').addEventListener('click', () => {
+            openContactModal(order);
+        });
+
+        // Address -> location modal
+        card.querySelector('.tracking-card-address').addEventListener('click', () => {
+            openLocationModal(order);
+        });
+
+        // Status change
+        card.querySelector('.tracking-status-select').addEventListener('change', async (e) => {
+            const newStatus = e.target.value;
+            try {
+                await updateTrackingOrder(order.id, { status: newStatus });
+                await updateTrackingView();
+            } catch (error) {
+                console.error('Error updating status:', error);
+            }
+        });
+
+        // Edit button
+        card.querySelector('.tracking-edit-btn').addEventListener('click', () => {
+            openEditModalTracking(order);
+        });
+
+        // Delete button
+        card.querySelector('.tracking-delete-btn').addEventListener('click', async () => {
+            if (confirm(`هل أنت متأكد من حذف طلب (${order.customer_name})؟`)) {
+                try {
+                    await deleteTrackingOrder(order.id);
+                    await updateTrackingView();
+                } catch (error) {
+                    console.error('Error deleting order:', error);
+                }
+            }
+        });
+
+        return card;
+    }
+
+    // ---- Render Tracking View ----
+    async function updateTrackingView() {
+        const orders = await getTrackingOrders();
+        trackingListEl.innerHTML = '';
+
+        if (!orders || orders.length === 0) {
+            noTrackingMsg.classList.remove('hidden');
+            return;
+        }
+        noTrackingMsg.classList.add('hidden');
+
+        // Group orders by date, then by area
+        const byDate = {};
+        orders.forEach(order => {
+            const d = order.date || 'بدون تاريخ';
+            if (!byDate[d]) byDate[d] = {};
+            const a = order.area || 'منطقة أخرى';
+            if (!byDate[d][a]) byDate[d][a] = [];
+            byDate[d][a].push(order);
+        });
+
+        const sortedDates = Object.keys(byDate).sort().reverse();
+
+        sortedDates.forEach(date => {
+            const accordion = document.createElement('div');
+            accordion.className = 'tracking-date-accordion';
+
+            const header = document.createElement('div');
+            header.className = 'tracking-date-header';
+            header.innerHTML = `📅 طلبات يوم ${date} <span class="tracking-toggle">▼</span>`;
+
+            const content = document.createElement('div');
+            content.className = 'tracking-date-content';
+
+            const areas = Object.keys(byDate[date]).sort();
+            const savedArea = localStorage.getItem('lastOpenArea');
+            const savedAreaExists = savedArea && areas.includes(savedArea);
+            areas.forEach(area => {
+                const areaSection = document.createElement('div');
+                areaSection.className = 'tracking-area-section tracking-area-collapsible';
+
+                const areaTitle = document.createElement('div');
+                areaTitle.className = 'tracking-area-header';
+                areaTitle.innerHTML = `📍 ${area} <span class="tracking-area-toggle">▼</span>`;
+
+                const cardsWrapper = document.createElement('div');
+                cardsWrapper.className = 'tracking-order-cards';
+
+                byDate[date][area].forEach(order => {
+                    cardsWrapper.appendChild(createTrackingOrderCard(order));
+                });
+
+                areaTitle.addEventListener('click', () => {
+                    areaSection.classList.toggle('area-expanded');
+                    if (areaSection.classList.contains('area-expanded')) {
+                        localStorage.setItem('lastOpenArea', area);
+                    } else {
+                        localStorage.removeItem('lastOpenArea');
+                    }
+                });
+
+                areaSection.appendChild(areaTitle);
+                areaSection.appendChild(cardsWrapper);
+                content.appendChild(areaSection);
+
+                areaSection.classList.add('area-expanded');
+
+                if (savedAreaExists && savedArea !== area) {
+                    areaSection.classList.remove('area-expanded');
+                }
             });
 
-            // Click Location Trigger -> smart location chooser modal
-            const locTriggerBtn = card.querySelector('.btn-location-trigger');
-            if (locTriggerBtn) {
-                locTriggerBtn.addEventListener('click', () => {
-                    openMapChooserModal(order.location);
-                });
+            // Add order button
+            const addBtn = document.createElement('button');
+            addBtn.className = 'tracking-add-order-btn';
+            addBtn.innerText = '+ إضافة طلب جديد';
+            addBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openAddModal(date);
+            });
+            content.appendChild(addBtn);
+
+            // Toggle accordion
+            header.addEventListener('click', () => {
+                accordion.classList.toggle('expanded');
+                if (accordion.classList.contains('expanded')) {
+                    localStorage.setItem('lastOpenDate', date);
+                } else {
+                    localStorage.removeItem('lastOpenDate');
+                    localStorage.removeItem('lastOpenArea');
+                }
+            });
+
+            accordion.appendChild(header);
+            accordion.appendChild(content);
+
+            // Auto-expand: if it's today's date or only one date
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (date === todayStr || sortedDates.length === 1) {
+                accordion.classList.add('expanded');
             }
 
-            // Click Location Missing -> location input modal
-            const locMissingBtn = card.querySelector('.btn-location-missing');
-            if (locMissingBtn) {
-                locMissingBtn.addEventListener('click', () => {
-                    openLocationModal(order.id);
-                });
+            // Restore last open date from localStorage
+            const savedDate = localStorage.getItem('lastOpenDate');
+            if (savedDate === date && date !== todayStr && sortedDates.length > 1) {
+                accordion.classList.add('expanded');
             }
 
-            deferredListEl.appendChild(card);
+            trackingListEl.appendChild(accordion);
         });
     }
 
@@ -1055,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await updateMainDashboard();
             await updateHistoryView();
             await updatePaymentsView();
-            await updateDeferredView();
+            await updateTrackingView();
         } catch (error) {
             console.error('Initialization error:', error);
         } finally {
