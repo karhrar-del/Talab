@@ -615,8 +615,9 @@ header p {
 }
 
 /* Search filter: hide elements that don't match */
-.tracking-order-card.search-hidden { display: none; }
-.tracking-area-collapsible.search-hidden { display: none; }
+.tracking-order-card.search-hidden,
+.tracking-table-row.search-hidden,
+.tracking-area-collapsible.search-hidden,
 .tracking-date-accordion.search-hidden { display: none; }
 
 /* Tracking Spinner (subtle, shown only on first load) */
@@ -1040,6 +1041,104 @@ header p {
 
 .tracking-search-active {
     gap: 0;
+}
+
+/* Table View Row (Excel-like spreadsheet row) */
+.tracking-table-row {
+    display: grid;
+    grid-template-columns: 35% 35% 30%;
+    gap: 0;
+    border: 1px solid #e5e7eb;
+    background: var(--card-bg);
+}
+
+.tracking-table-row + .tracking-table-row {
+    margin-top: 0.25rem;
+}
+
+.tt-col {
+    padding: 4px;
+    border: 1px solid #e5e7eb;
+}
+
+.tt-name {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--primary);
+    cursor: pointer;
+    line-height: 1.3;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.tt-phone {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    direction: ltr;
+    text-align: right;
+    line-height: 1.4;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.tt-area {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--text-main);
+    line-height: 1.3;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.tt-address {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    line-height: 1.4;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.tt-col-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tt-notes {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.3;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.tt-action-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tt-action-row .tracking-status-select {
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.tt-action-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.tt-action-buttons .tracking-edit-btn,
+.tt-action-buttons .tracking-delete-btn {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    line-height: 1;
+    min-width: 0;
+    flex: 1;
 }
 
 /* Add Order Floating Button inside Date Accordion */

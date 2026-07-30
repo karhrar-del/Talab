@@ -1050,37 +1050,60 @@ document.addEventListener('DOMContentLoaded', () => {
         const l1Accordions = trackingListEl.querySelectorAll('.tracking-date-accordion');
         l1Accordions.forEach(accord => {
             const l2Sections = accord.querySelectorAll('.tracking-area-collapsible');
+            const tableRows = accord.querySelectorAll('.tracking-table-row');
             let accordHasVisible = false;
 
-            l2Sections.forEach(area => {
-                const cards = area.querySelectorAll('.tracking-order-card');
-                let areaHasVisible = false;
+            if (l2Sections.length > 0) {
+                l2Sections.forEach(area => {
+                    const cards = area.querySelectorAll('.tracking-order-card');
+                    let areaHasVisible = false;
 
-                cards.forEach(card => {
-                    const data = (card.dataset.search || '').toLowerCase();
-                    const match = data.includes(term);
-                    card.classList.toggle('search-hidden', !match);
+                    cards.forEach(card => {
+                        const data = (card.dataset.search || '').toLowerCase();
+                        const match = data.includes(term);
+                        card.classList.toggle('search-hidden', !match);
+                        if (match) {
+                            areaHasVisible = true;
+                            accordHasVisible = true;
+                            area.classList.add('area-expanded');
+                            accord.classList.add('expanded');
+                        }
+                    });
+
+                    area.classList.toggle('search-hidden', !areaHasVisible);
+                });
+            }
+
+            if (tableRows.length > 0) {
+                tableRows.forEach(row => {
+                    const name = (row.querySelector('.tt-name')?.textContent || '').toLowerCase();
+                    const phone = (row.querySelector('.tt-phone')?.textContent || '').toLowerCase();
+                    const match = name.includes(term) || phone.includes(term);
+                    row.classList.toggle('search-hidden', !match);
                     if (match) {
-                        areaHasVisible = true;
                         accordHasVisible = true;
-                        area.classList.add('area-expanded');
                         accord.classList.add('expanded');
                     }
                 });
-
-                area.classList.toggle('search-hidden', !areaHasVisible);
-            });
+            }
 
             accord.classList.toggle('search-hidden', !accordHasVisible);
         });
     });
 
     // ---- Toggle View Mode ----
+    const modeIcons = { 'date-first': '📅', 'area-first': '📍', 'table-view': '📋' };
     toggleViewBtn.addEventListener('click', () => {
-        viewMode = viewMode === 'date-first' ? 'area-first' : 'date-first';
+        const modes = ['date-first', 'area-first', 'table-view'];
+        const idx = modes.indexOf(viewMode);
+        viewMode = modes[(idx + 1) % modes.length];
         localStorage.setItem('viewMode', viewMode);
+        toggleViewBtn.textContent = modeIcons[viewMode] || '🔄';
+        toggleViewBtn.title = viewMode === 'date-first' ? 'عرض حسب التاريخ' : viewMode === 'area-first' ? 'عرض حسب المنطقة' : 'عرض جدولي';
         updateTrackingView();
     });
+    // Set initial icon
+    toggleViewBtn.textContent = modeIcons[viewMode] || '🔄';
 
     // ---- Tracking Add Form Submit ----
     trackingAddForm.addEventListener('submit', async (e) => {
@@ -1266,8 +1289,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (viewMode === 'date-first') {
             renderDateFirst(orders);
-        } else {
+        } else if (viewMode === 'area-first') {
             renderAreaFirst(orders);
+        } else {
+            renderTableView(orders);
         }
     }
 
@@ -1455,6 +1480,133 @@ document.addEventListener('DOMContentLoaded', () => {
                 dateSection.appendChild(addBtn);
 
                 content.appendChild(dateSection);
+            });
+
+            trackingListEl.appendChild(accordion);
+        });
+    }
+
+    function renderTableView(orders) {
+        const primaryKey = 'lastOpenDate';
+        const savedPrimary = localStorage.getItem(primaryKey);
+
+        const tableStatusBg = {
+            'قيد التسليم': '',
+            'مؤجل': '#f3f4f6',
+            'واصل': '#dcfce7',
+            'راجع': '#fee2e2'
+        };
+
+        const byDate = {};
+        orders.forEach(order => {
+            const d = order.date || 'بدون تاريخ';
+            if (!byDate[d]) byDate[d] = [];
+            byDate[d].push(order);
+        });
+
+        const sortedDates = Object.keys(byDate).sort().reverse();
+
+        sortedDates.forEach(date => {
+            const accordion = document.createElement('div');
+            accordion.className = 'tracking-date-accordion';
+            accordion.dataset.primary = date;
+
+            const header = document.createElement('div');
+            header.className = 'tracking-date-header';
+            header.innerHTML = `📅 طلبات يوم ${date} <span class="tracking-toggle">▼</span>`;
+
+            const content = document.createElement('div');
+            content.className = 'tracking-date-content';
+
+            header.addEventListener('click', () => {
+                accordion.classList.toggle('expanded');
+                if (accordion.classList.contains('expanded')) {
+                    localStorage.setItem(primaryKey, date);
+                } else {
+                    localStorage.removeItem(primaryKey);
+                }
+            });
+
+            if (savedPrimary === date) {
+                accordion.classList.add('expanded');
+            }
+
+            accordion.appendChild(header);
+            accordion.appendChild(content);
+
+            byDate[date].forEach(order => {
+                const row = document.createElement('div');
+                row.className = 'tracking-table-row';
+
+                const bg = tableStatusBg[order.status] || '';
+                if (bg) row.style.backgroundColor = bg;
+
+                const safeName = escapeHtml(order.customer_name);
+                const safePhone = escapeHtml(order.phone);
+                const safeArea = escapeHtml(order.area);
+                const safeAddress = escapeHtml(order.address);
+                const safeNotes = escapeHtml(order.notes);
+
+                row.innerHTML = `
+                    <div class="tt-col tt-col-contact">
+                        <div class="tt-name">${safeName}</div>
+                        <div class="tt-phone">📞 ${safePhone}</div>
+                    </div>
+                    <div class="tt-col tt-col-location">
+                        <div class="tt-area">📍 ${safeArea}</div>
+                        <div class="tt-address">${safeAddress || 'لا يوجد عنوان'}</div>
+                    </div>
+                    <div class="tt-col tt-col-actions">
+                        ${safeNotes ? `<div class="tt-notes">📝 ${safeNotes}</div>` : ''}
+                        <div class="tt-action-row">
+                            <select class="tracking-status-select tt-status">
+                                <option value="قيد التسليم" ${order.status === 'قيد التسليم' ? 'selected' : ''}>قيد التسليم</option>
+                                <option value="مؤجل" ${order.status === 'مؤجل' ? 'selected' : ''}>مؤجل</option>
+                                <option value="راجع" ${order.status === 'راجع' ? 'selected' : ''}>راجع</option>
+                                <option value="واصل" ${order.status === 'واصل' ? 'selected' : ''}>واصل</option>
+                            </select>
+                            <div class="tt-action-buttons">
+                                <button class="tracking-edit-btn tt-edit">✏️</button>
+                                <button class="tracking-delete-btn tt-delete">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                row.querySelector('.tt-col-contact').addEventListener('click', () => {
+                    openContactModal(order);
+                });
+
+                row.querySelector('.tt-col-location').addEventListener('click', () => {
+                    openLocationModal(order);
+                });
+
+                row.querySelector('.tt-status').addEventListener('change', async (e) => {
+                    const newStatus = e.target.value;
+                    try {
+                        await updateTrackingOrder(order.id, { status: newStatus });
+                        await updateTrackingView();
+                    } catch (error) {
+                        console.error('Error updating status:', error);
+                    }
+                });
+
+                row.querySelector('.tt-edit').addEventListener('click', () => {
+                    openEditModalTracking(order);
+                });
+
+                row.querySelector('.tt-delete').addEventListener('click', async () => {
+                    if (confirm(`هل أنت متأكد من حذف طلب (${order.customer_name})؟`)) {
+                        try {
+                            await deleteTrackingOrder(order.id);
+                            await updateTrackingView();
+                        } catch (error) {
+                            console.error('Error deleting order:', error);
+                        }
+                    }
+                });
+
+                content.appendChild(row);
             });
 
             trackingListEl.appendChild(accordion);
