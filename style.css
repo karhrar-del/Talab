@@ -49,6 +49,11 @@ body {
     to { opacity: 1; }
 }
 
+/* Utility: hide elements */
+.hidden {
+    display: none !important;
+}
+
 .container {
     width: 100%;
     padding: env(safe-area-inset-top, 20px) 1rem 1rem 1rem;
@@ -609,6 +614,36 @@ header p {
     gap: 1rem;
 }
 
+/* Search filter: hide elements that don't match */
+.tracking-order-card.search-hidden { display: none; }
+.tracking-area-collapsible.search-hidden { display: none; }
+.tracking-date-accordion.search-hidden { display: none; }
+
+/* Tracking Spinner (subtle, shown only on first load) */
+.tracking-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 0;
+    gap: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.tracking-spinner-ring {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--border-color);
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    animation: tracking-spin 0.8s linear infinite;
+}
+
+@keyframes tracking-spin {
+    to { transform: rotate(360deg); }
+}
+
 /* Date Accordion */
 .tracking-date-accordion {
     background: var(--card-bg);
@@ -837,17 +872,18 @@ header p {
     background: #fee2e2;
 }
 
-/* Top Actions Row (75/25 layout) */
+/* Top Actions Row (50/25/25 layout with search) */
 .tracking-top-actions {
     display: flex;
     flex-direction: row;
     gap: 8px;
     width: 100%;
     margin-bottom: 1.25rem;
+    transition: gap 0.3s;
 }
 
 .tracking-add-main-btn {
-    flex: 3;
+    flex: 2;
     padding: 1rem;
     background: var(--primary);
     color: #fff;
@@ -859,7 +895,9 @@ header p {
     cursor: pointer;
     text-align: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: background 0.15s;
+    transition: max-width 0.3s, opacity 0.3s, padding 0.3s, margin 0.3s;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .tracking-add-main-btn:active {
@@ -868,23 +906,119 @@ header p {
 
 .manage-areas-btn {
     flex: 1;
-    min-width: 48px;
+    min-width: 40px;
     padding: 0.75rem 0.5rem;
     background: transparent;
     color: var(--primary);
     border: 1px solid var(--primary);
     border-radius: 8px;
     font-family: var(--font-family);
-    font-size: 1.1rem;
+    font-size: 1.3rem;
     font-weight: 700;
     cursor: pointer;
     text-align: center;
-    transition: background 0.15s, color 0.15s;
+    transition: max-width 0.3s, opacity 0.3s, padding 0.3s, margin 0.3s;
+    overflow: hidden;
 }
 
 .manage-areas-btn:active {
     background: var(--primary);
     color: #fff;
+}
+
+/* Search Container */
+.tracking-search-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0 0.5rem;
+    cursor: pointer;
+    transition: flex 0.3s, max-width 0.3s, border-color 0.15s;
+    overflow: hidden;
+    min-width: 36px;
+}
+
+.tracking-search-container:focus-within {
+    border-color: var(--primary);
+    cursor: text;
+}
+
+.tracking-search-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.tracking-search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font-family);
+    font-size: 1rem;
+    padding: 0.7rem 0.4rem;
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+    transition: opacity 0.25s;
+    pointer-events: none;
+}
+
+.tracking-search-container:focus-within .tracking-search-input {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.tracking-search-clear {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    padding: 0.25rem 0.35rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: none;
+    line-height: 1;
+}
+
+.tracking-search-clear:active {
+    color: var(--text-main);
+}
+
+.tracking-search-container:focus-within .tracking-search-clear {
+    display: block;
+}
+
+/* Search expanded mode: hide buttons */
+.tracking-search-active .tracking-add-main-btn {
+    flex: 0 0 0;
+    max-width: 0;
+    padding: 1rem 0;
+    margin: 0;
+    opacity: 0;
+    border: none;
+}
+
+.tracking-search-active .manage-areas-btn {
+    flex: 0 0 0;
+    max-width: 0;
+    padding: 0.75rem 0;
+    margin: 0;
+    opacity: 0;
+    border: none;
+}
+
+.tracking-search-active .tracking-search-container {
+    flex: 1 1 100%;
+}
+
+.tracking-search-active {
+    gap: 0;
 }
 
 /* Add Order Floating Button inside Date Accordion */

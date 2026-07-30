@@ -202,9 +202,18 @@
                 <p>متابعة وتحديث الطلبات</p>
             </header>
             <main>
-                <div class="tracking-top-actions">
+                <div class="tracking-top-actions" id="tracking-top-actions">
                     <button type="button" id="tracking-add-btn" class="tracking-add-main-btn">+ إضافة طلب جديد</button>
                     <button type="button" id="manage-areas-btn" class="manage-areas-btn">⚙️</button>
+                    <div id="search-container" class="tracking-search-container">
+                        <span class="tracking-search-icon">🔍</span>
+                        <input type="text" id="search-input" class="tracking-search-input" placeholder="بحث بالاسم أو الرقم..." autocomplete="off">
+                        <button type="button" id="search-clear" class="tracking-search-clear">✕</button>
+                    </div>
+                </div>
+                <div id="tracking-spinner" class="tracking-spinner hidden">
+                    <div class="tracking-spinner-ring"></div>
+                    <span>جاري التحميل...</span>
                 </div>
                 <div id="tracking-list" class="tracking-list">
                     <!-- Date accordions will be injected here -->

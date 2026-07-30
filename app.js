@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // ---- Firebase Configuration ----
@@ -23,6 +23,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const firebaseApp = initializeApp(firebaseConfig);
     const db = getFirestore(firebaseApp);
+
+    // Enable Firestore offline persistence (caches data locally for instant load)
+    enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code === 'failed-precondition') {
+            console.warn('Firestore persistence: multiple tabs open, persistence disabled.');
+        } else if (err.code === 'unimplemented') {
+            console.warn('Firestore persistence: browser does not support it.');
+        } else {
+            console.warn('Firestore persistence error:', err);
+        }
+    });
 
     // ---- Loading State ----
     const loadingBar = document.getElementById('loading-bar');
@@ -758,6 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---- Tracking DOM References ----
     const trackingListEl = document.getElementById('tracking-list');
     const noTrackingMsg = document.getElementById('no-tracking-msg');
+    const trackingSpinner = document.getElementById('tracking-spinner');
 
     const trackingContactModal = document.getElementById('tracking-contact-modal');
     const trackingContactName = document.getElementById('tracking-contact-name');
@@ -793,6 +805,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const trackingEditLocation = document.getElementById('track-edit-location');
     const trackingEditNotes = document.getElementById('track-edit-notes');
     const trackingCancelEdit = document.getElementById('tracking-cancel-edit');
+
+    // ---- Search Elements ----
+    const topActions = document.getElementById('tracking-top-actions');
+    const searchContainer = document.getElementById('search-container');
+    const searchInput = document.getElementById('search-input');
+    const searchClear = document.getElementById('search-clear');
 
     // ---- Modal Helpers ----
     function openContactModal(order) {
@@ -972,6 +990,85 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ---- Search: Expand/Collapse Logic ----
+    function expandSearch() {
+        topActions.classList.add('tracking-search-active');
+    }
+
+    function collapseSearch() {
+        topActions.classList.remove('tracking-search-active');
+        searchInput.value = '';
+        clearSearchFilter();
+    }
+
+    searchContainer.addEventListener('click', () => {
+        searchInput.focus();
+    });
+
+    searchInput.addEventListener('focus', expandSearch);
+
+    searchInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            if (!searchInput.value.trim() && topActions.classList.contains('tracking-search-active')) {
+                collapseSearch();
+            }
+        }, 180);
+    });
+
+    searchClear.addEventListener('click', (e) => {
+        e.stopPropagation();
+        collapseSearch();
+        searchInput.blur();
+    });
+
+    // ---- Search: Real-Time Filtering ----
+    function clearSearchFilter() {
+        trackingListEl.querySelectorAll('.search-hidden').forEach(el => el.classList.remove('search-hidden'));
+        const savedDate = localStorage.getItem('lastOpenDate');
+        const savedArea = localStorage.getItem('lastOpenArea');
+        trackingListEl.querySelectorAll('.tracking-date-accordion').forEach(acc => {
+            acc.classList.toggle('expanded', acc.dataset.date === savedDate);
+        });
+        trackingListEl.querySelectorAll('.tracking-area-collapsible').forEach(area => {
+            area.classList.toggle('area-expanded', area.dataset.area === savedArea);
+        });
+    }
+
+    searchInput.addEventListener('input', () => {
+        const term = searchInput.value.toLowerCase().trim();
+        if (!term) {
+            clearSearchFilter();
+            return;
+        }
+
+        const dateAccordions = trackingListEl.querySelectorAll('.tracking-date-accordion');
+        dateAccordions.forEach(accord => {
+            const areaSections = accord.querySelectorAll('.tracking-area-collapsible');
+            let accordHasVisible = false;
+
+            areaSections.forEach(area => {
+                const cards = area.querySelectorAll('.tracking-order-card');
+                let areaHasVisible = false;
+
+                cards.forEach(card => {
+                    const data = (card.dataset.search || '').toLowerCase();
+                    const match = data.includes(term);
+                    card.classList.toggle('search-hidden', !match);
+                    if (match) {
+                        areaHasVisible = true;
+                        accordHasVisible = true;
+                        area.classList.add('area-expanded');
+                        accord.classList.add('expanded');
+                    }
+                });
+
+                area.classList.toggle('search-hidden', !areaHasVisible);
+            });
+
+            accord.classList.toggle('search-hidden', !accordHasVisible);
+        });
+    });
+
     // ---- Tracking Add Form Submit ----
     trackingAddForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1049,6 +1146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = document.createElement('div');
         card.className = 'tracking-order-card';
         card.dataset.id = order.id;
+        card.dataset.search = `${order.customer_name || ''}|${order.phone || ''}`.toLowerCase();
 
         const statusColors = {
             'قيد التسليم': '#059669',
@@ -1134,7 +1232,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---- Render Tracking View ----
     async function updateTrackingView() {
+        const isFirstLoad = cachedTrackingOrders === null;
+        if (isFirstLoad && trackingSpinner) {
+            trackingSpinner.classList.remove('hidden');
+        }
+
         const orders = await getTrackingOrders();
+
+        if (trackingSpinner) {
+            trackingSpinner.classList.add('hidden');
+        }
+
         trackingListEl.innerHTML = '';
 
         if (!orders || orders.length === 0) {
@@ -1158,6 +1266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sortedDates.forEach(date => {
             const accordion = document.createElement('div');
             accordion.className = 'tracking-date-accordion';
+            accordion.dataset.date = date;
 
             const header = document.createElement('div');
             header.className = 'tracking-date-header';
@@ -1168,10 +1277,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const areas = Object.keys(byDate[date]).sort();
             const savedArea = localStorage.getItem('lastOpenArea');
-            const savedAreaExists = savedArea && areas.includes(savedArea);
             areas.forEach(area => {
                 const areaSection = document.createElement('div');
                 areaSection.className = 'tracking-area-section tracking-area-collapsible';
+                areaSection.dataset.area = area;
 
                 const areaTitle = document.createElement('div');
                 areaTitle.className = 'tracking-area-header';
@@ -1197,10 +1306,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 areaSection.appendChild(cardsWrapper);
                 content.appendChild(areaSection);
 
-                areaSection.classList.add('area-expanded');
-
-                if (savedAreaExists && savedArea !== area) {
-                    areaSection.classList.remove('area-expanded');
+                if (savedArea === area) {
+                    areaSection.classList.add('area-expanded');
                 }
             });
 
@@ -1228,15 +1335,9 @@ document.addEventListener('DOMContentLoaded', () => {
             accordion.appendChild(header);
             accordion.appendChild(content);
 
-            // Auto-expand: if it's today's date or only one date
-            const todayStr = new Date().toISOString().split('T')[0];
-            if (date === todayStr || sortedDates.length === 1) {
-                accordion.classList.add('expanded');
-            }
-
             // Restore last open date from localStorage
             const savedDate = localStorage.getItem('lastOpenDate');
-            if (savedDate === date && date !== todayStr && sortedDates.length > 1) {
+            if (savedDate === date) {
                 accordion.classList.add('expanded');
             }
 
