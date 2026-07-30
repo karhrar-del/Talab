@@ -872,7 +872,7 @@ header p {
     background: #fee2e2;
 }
 
-/* Top Actions Row (50/25/25 layout with search) */
+/* Top Actions Row (40/20/20/20 layout with toggle & search) */
 .tracking-top-actions {
     display: flex;
     flex-direction: row;
@@ -922,6 +922,29 @@ header p {
 }
 
 .manage-areas-btn:active {
+    background: var(--primary);
+    color: #fff;
+}
+
+/* Toggle View Button */
+.toggle-view-btn {
+    flex: 1;
+    min-width: 40px;
+    padding: 0.75rem 0.5rem;
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    font-family: var(--font-family);
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: max-width 0.3s, opacity 0.3s, padding 0.3s, margin 0.3s, background 0.15s, color 0.15s;
+    overflow: hidden;
+}
+
+.toggle-view-btn:active {
     background: var(--primary);
     color: #fff;
 }
@@ -995,7 +1018,9 @@ header p {
 }
 
 /* Search expanded mode: hide buttons */
-.tracking-search-active .tracking-add-main-btn {
+.tracking-search-active .tracking-add-main-btn,
+.tracking-search-active .manage-areas-btn,
+.tracking-search-active .toggle-view-btn {
     flex: 0 0 0;
     max-width: 0;
     padding: 1rem 0;
@@ -1004,13 +1029,9 @@ header p {
     border: none;
 }
 
+.tracking-search-active .toggle-view-btn,
 .tracking-search-active .manage-areas-btn {
-    flex: 0 0 0;
-    max-width: 0;
     padding: 0.75rem 0;
-    margin: 0;
-    opacity: 0;
-    border: none;
 }
 
 .tracking-search-active .tracking-search-container {

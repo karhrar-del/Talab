@@ -812,6 +812,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('search-input');
     const searchClear = document.getElementById('search-clear');
 
+    // ---- View Mode State ----
+    let viewMode = localStorage.getItem('viewMode') || 'date-first';
+    const toggleViewBtn = document.getElementById('toggle-view-btn');
+
     // ---- Modal Helpers ----
     function openContactModal(order) {
         const phone = order.phone || '';
@@ -1024,13 +1028,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---- Search: Real-Time Filtering ----
     function clearSearchFilter() {
         trackingListEl.querySelectorAll('.search-hidden').forEach(el => el.classList.remove('search-hidden'));
-        const savedDate = localStorage.getItem('lastOpenDate');
-        const savedArea = localStorage.getItem('lastOpenArea');
+        const primaryKey = viewMode === 'date-first' ? 'lastOpenDate' : 'lastOpenPrimary';
+        const secondaryKey = viewMode === 'date-first' ? 'lastOpenArea' : 'lastOpenSecondary';
+        const savedPrimary = localStorage.getItem(primaryKey);
+        const savedSecondary = localStorage.getItem(secondaryKey);
         trackingListEl.querySelectorAll('.tracking-date-accordion').forEach(acc => {
-            acc.classList.toggle('expanded', acc.dataset.date === savedDate);
+            acc.classList.toggle('expanded', acc.dataset.primary === savedPrimary);
         });
-        trackingListEl.querySelectorAll('.tracking-area-collapsible').forEach(area => {
-            area.classList.toggle('area-expanded', area.dataset.area === savedArea);
+        trackingListEl.querySelectorAll('.tracking-area-collapsible').forEach(el => {
+            el.classList.toggle('area-expanded', el.dataset.secondary === savedSecondary);
         });
     }
 
@@ -1041,12 +1047,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const dateAccordions = trackingListEl.querySelectorAll('.tracking-date-accordion');
-        dateAccordions.forEach(accord => {
-            const areaSections = accord.querySelectorAll('.tracking-area-collapsible');
+        const l1Accordions = trackingListEl.querySelectorAll('.tracking-date-accordion');
+        l1Accordions.forEach(accord => {
+            const l2Sections = accord.querySelectorAll('.tracking-area-collapsible');
             let accordHasVisible = false;
 
-            areaSections.forEach(area => {
+            l2Sections.forEach(area => {
                 const cards = area.querySelectorAll('.tracking-order-card');
                 let areaHasVisible = false;
 
@@ -1067,6 +1073,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             accord.classList.toggle('search-hidden', !accordHasVisible);
         });
+    });
+
+    // ---- Toggle View Mode ----
+    toggleViewBtn.addEventListener('click', () => {
+        viewMode = viewMode === 'date-first' ? 'area-first' : 'date-first';
+        localStorage.setItem('viewMode', viewMode);
+        updateTrackingView();
     });
 
     // ---- Tracking Add Form Submit ----
@@ -1251,7 +1264,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         noTrackingMsg.classList.add('hidden');
 
-        // Group orders by date, then by area
+        if (viewMode === 'date-first') {
+            renderDateFirst(orders);
+        } else {
+            renderAreaFirst(orders);
+        }
+    }
+
+    function renderDateFirst(orders) {
+        const primaryKey = 'lastOpenDate';
+        const secondaryKey = 'lastOpenArea';
+        const savedPrimary = localStorage.getItem(primaryKey);
+        const savedSecondary = localStorage.getItem(secondaryKey);
+
         const byDate = {};
         orders.forEach(order => {
             const d = order.date || 'بدون تاريخ';
@@ -1266,7 +1291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sortedDates.forEach(date => {
             const accordion = document.createElement('div');
             accordion.className = 'tracking-date-accordion';
-            accordion.dataset.date = date;
+            accordion.dataset.primary = date;
 
             const header = document.createElement('div');
             header.className = 'tracking-date-header';
@@ -1275,12 +1300,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const content = document.createElement('div');
             content.className = 'tracking-date-content';
 
+            header.addEventListener('click', () => {
+                accordion.classList.toggle('expanded');
+                if (accordion.classList.contains('expanded')) {
+                    localStorage.setItem(primaryKey, date);
+                } else {
+                    localStorage.removeItem(primaryKey);
+                    localStorage.removeItem(secondaryKey);
+                }
+            });
+
+            if (savedPrimary === date) {
+                accordion.classList.add('expanded');
+            }
+
+            accordion.appendChild(header);
+            accordion.appendChild(content);
+
             const areas = Object.keys(byDate[date]).sort();
-            const savedArea = localStorage.getItem('lastOpenArea');
             areas.forEach(area => {
                 const areaSection = document.createElement('div');
                 areaSection.className = 'tracking-area-section tracking-area-collapsible';
-                areaSection.dataset.area = area;
+                areaSection.dataset.secondary = area;
 
                 const areaTitle = document.createElement('div');
                 areaTitle.className = 'tracking-area-header';
@@ -1296,50 +1337,125 @@ document.addEventListener('DOMContentLoaded', () => {
                 areaTitle.addEventListener('click', () => {
                     areaSection.classList.toggle('area-expanded');
                     if (areaSection.classList.contains('area-expanded')) {
-                        localStorage.setItem('lastOpenArea', area);
+                        localStorage.setItem(secondaryKey, area);
                     } else {
-                        localStorage.removeItem('lastOpenArea');
+                        localStorage.removeItem(secondaryKey);
                     }
                 });
 
-                areaSection.appendChild(areaTitle);
-                areaSection.appendChild(cardsWrapper);
-                content.appendChild(areaSection);
-
-                if (savedArea === area) {
+                if (savedSecondary === area) {
                     areaSection.classList.add('area-expanded');
                 }
+
+                areaSection.appendChild(areaTitle);
+                areaSection.appendChild(cardsWrapper);
+
+                const addBtn = document.createElement('button');
+                addBtn.className = 'tracking-add-order-btn';
+                addBtn.innerText = '+ إضافة طلب جديد';
+                addBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openAddModal(date);
+                });
+                areaSection.appendChild(addBtn);
+
+                content.appendChild(areaSection);
             });
 
-            // Add order button
-            const addBtn = document.createElement('button');
-            addBtn.className = 'tracking-add-order-btn';
-            addBtn.innerText = '+ إضافة طلب جديد';
-            addBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openAddModal(date);
-            });
-            content.appendChild(addBtn);
+            trackingListEl.appendChild(accordion);
+        });
+    }
 
-            // Toggle accordion
+    function renderAreaFirst(orders) {
+        const primaryKey = 'lastOpenPrimary';
+        const secondaryKey = 'lastOpenSecondary';
+        const savedPrimary = localStorage.getItem(primaryKey);
+        const savedSecondary = localStorage.getItem(secondaryKey);
+
+        const byArea = {};
+        orders.forEach(order => {
+            const a = order.area || 'منطقة أخرى';
+            if (!byArea[a]) byArea[a] = {};
+            const d = order.date || 'بدون تاريخ';
+            if (!byArea[a][d]) byArea[a][d] = [];
+            byArea[a][d].push(order);
+        });
+
+        const sortedAreas = Object.keys(byArea).sort();
+
+        sortedAreas.forEach(area => {
+            const accordion = document.createElement('div');
+            accordion.className = 'tracking-date-accordion';
+            accordion.dataset.primary = area;
+
+            const header = document.createElement('div');
+            header.className = 'tracking-date-header';
+            header.innerHTML = `📍 ${area} <span class="tracking-toggle">▼</span>`;
+
+            const content = document.createElement('div');
+            content.className = 'tracking-date-content';
+
             header.addEventListener('click', () => {
                 accordion.classList.toggle('expanded');
                 if (accordion.classList.contains('expanded')) {
-                    localStorage.setItem('lastOpenDate', date);
+                    localStorage.setItem(primaryKey, area);
                 } else {
-                    localStorage.removeItem('lastOpenDate');
-                    localStorage.removeItem('lastOpenArea');
+                    localStorage.removeItem(primaryKey);
+                    localStorage.removeItem(secondaryKey);
                 }
             });
+
+            if (savedPrimary === area) {
+                accordion.classList.add('expanded');
+            }
 
             accordion.appendChild(header);
             accordion.appendChild(content);
 
-            // Restore last open date from localStorage
-            const savedDate = localStorage.getItem('lastOpenDate');
-            if (savedDate === date) {
-                accordion.classList.add('expanded');
-            }
+            const dates = Object.keys(byArea[area]).sort().reverse();
+            dates.forEach(date => {
+                const dateSection = document.createElement('div');
+                dateSection.className = 'tracking-area-section tracking-area-collapsible';
+                dateSection.dataset.secondary = date;
+
+                const dateTitle = document.createElement('div');
+                dateTitle.className = 'tracking-area-header';
+                dateTitle.innerHTML = `📅 طلبات يوم ${date} <span class="tracking-area-toggle">▼</span>`;
+
+                const cardsWrapper = document.createElement('div');
+                cardsWrapper.className = 'tracking-order-cards';
+
+                byArea[area][date].forEach(order => {
+                    cardsWrapper.appendChild(createTrackingOrderCard(order));
+                });
+
+                dateTitle.addEventListener('click', () => {
+                    dateSection.classList.toggle('area-expanded');
+                    if (dateSection.classList.contains('area-expanded')) {
+                        localStorage.setItem(secondaryKey, date);
+                    } else {
+                        localStorage.removeItem(secondaryKey);
+                    }
+                });
+
+                if (savedSecondary === date) {
+                    dateSection.classList.add('area-expanded');
+                }
+
+                dateSection.appendChild(dateTitle);
+                dateSection.appendChild(cardsWrapper);
+
+                const addBtn = document.createElement('button');
+                addBtn.className = 'tracking-add-order-btn';
+                addBtn.innerText = '+ إضافة طلب جديد';
+                addBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openAddModal(date);
+                });
+                dateSection.appendChild(addBtn);
+
+                content.appendChild(dateSection);
+            });
 
             trackingListEl.appendChild(accordion);
         });
