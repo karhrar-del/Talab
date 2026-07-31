@@ -1183,61 +1183,63 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = document.createElement('div');
         card.className = 'tracking-order-card';
         card.dataset.id = order.id;
+        card.dataset.orderId = order.id;
         card.dataset.search = `${order.customer_name || ''}|${order.phone || ''}`.toLowerCase();
 
-        const statusColors = {
-            'قيد التسليم': '#059669',
-            'مؤجل': '#d97706',
-            'راجع': '#dc2626',
-            'واصل': '#1d4ed8'
+        const cardStatusBg = {
+            'قيد التسليم': '',
+            'مؤجل': '#f3f4f6',
+            'واصل': '#dcfce7',
+            'راجع': '#fee2e2'
         };
+        const bg = cardStatusBg[order.status] || '';
+        if (bg) card.style.backgroundColor = bg;
 
         const safeName = escapeHtml(order.customer_name);
         const safePhone = escapeHtml(order.phone);
+        const safeArea = escapeHtml(order.area);
         const safeAddress = escapeHtml(order.address);
-
-        // Extract just phone digits for display
-        const phoneDisplay = order.phone || '';
+        const safeNotes = escapeHtml(order.notes);
 
         card.innerHTML = `
-            <div class="tracking-card-header">
-                <span class="tracking-customer-name">${safeName}</span>
-                <span class="tracking-status-badge" style="background: ${statusColors[order.status] || '#6b7280'}">${escapeHtml(order.status)}</span>
+            <div class="tt-col tt-drag-handle">☰</div>
+            <div class="tt-col tt-col-contact">
+                <div class="tt-name">${safeName}</div>
+                <div class="tt-phone">📞 ${safePhone}</div>
             </div>
-            <div class="tracking-card-body">
-                <div class="tracking-card-phone">📞 ${phoneDisplay}</div>
-                <div class="tracking-card-address">📍 ${safeAddress || 'لا يوجد عنوان'}</div>
-                ${order.notes ? `<div class="tracking-card-notes">📝 ${escapeHtml(order.notes)}</div>` : ''}
+            <div class="tt-col tt-col-location">
+                <div class="tt-area">📍 ${safeArea}</div>
+                <div class="tt-address">${safeAddress || 'لا يوجد عنوان'}</div>
             </div>
-            <div class="tracking-card-actions">
-                <select class="tracking-status-select">
-                    <option value="قيد التسليم" ${order.status === 'قيد التسليم' ? 'selected' : ''}>قيد التسليم</option>
-                    <option value="مؤجل" ${order.status === 'مؤجل' ? 'selected' : ''}>مؤجل</option>
-                    <option value="راجع" ${order.status === 'راجع' ? 'selected' : ''}>راجع</option>
-                    <option value="واصل" ${order.status === 'واصل' ? 'selected' : ''}>واصل</option>
-                </select>
-                <button class="tracking-edit-btn">تعديل</button>
-                <button class="tracking-delete-btn">🗑️ تصفية</button>
+            <div class="tt-col tt-col-actions">
+                ${safeNotes ? `<div class="tt-notes">📝 ${safeNotes}</div>` : ''}
+                <div class="tt-action-row">
+                    <select class="tracking-status-select tt-status">
+                        <option value="قيد التسليم" ${order.status === 'قيد التسليم' ? 'selected' : ''}>قيد التسليم</option>
+                        <option value="مؤجل" ${order.status === 'مؤجل' ? 'selected' : ''}>مؤجل</option>
+                        <option value="راجع" ${order.status === 'راجع' ? 'selected' : ''}>راجع</option>
+                        <option value="واصل" ${order.status === 'واصل' ? 'selected' : ''}>واصل</option>
+                    </select>
+                    <div class="tt-action-buttons">
+                        <button class="tracking-edit-btn tt-edit">✏️</button>
+                        <button class="tracking-delete-btn tt-delete">🗑️</button>
+                    </div>
+                </div>
             </div>
         `;
 
-        // Customer name -> contact modal
-        card.querySelector('.tracking-customer-name').addEventListener('click', () => {
+        // Contact column (name/phone) -> contact modal
+        card.querySelector('.tt-col-contact').addEventListener('click', () => {
             openContactModal(order);
         });
 
-        // Phone -> contact modal
-        card.querySelector('.tracking-card-phone').addEventListener('click', () => {
-            openContactModal(order);
-        });
-
-        // Address -> location modal
-        card.querySelector('.tracking-card-address').addEventListener('click', () => {
+        // Location column (area/address) -> location modal
+        card.querySelector('.tt-col-location').addEventListener('click', () => {
             openLocationModal(order);
         });
 
         // Status change
-        card.querySelector('.tracking-status-select').addEventListener('change', async (e) => {
+        card.querySelector('.tt-status').addEventListener('change', async (e) => {
             const newStatus = e.target.value;
             try {
                 await updateTrackingOrder(order.id, { status: newStatus });
@@ -1248,12 +1250,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Edit button
-        card.querySelector('.tracking-edit-btn').addEventListener('click', () => {
+        card.querySelector('.tt-edit').addEventListener('click', () => {
             openEditModalTracking(order);
         });
 
         // Delete button
-        card.querySelector('.tracking-delete-btn').addEventListener('click', async () => {
+        card.querySelector('.tt-delete').addEventListener('click', async () => {
             if (confirm(`هل أنت متأكد من حذف طلب (${order.customer_name})؟`)) {
                 try {
                     await deleteTrackingOrder(order.id);
@@ -1265,6 +1267,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         return card;
+    }
+
+    // Shared Sortable setup for drag-and-drop route reordering
+    function setupSortable(container, itemSelector) {
+        Sortable.create(container, {
+            handle: '.tt-drag-handle',
+            draggable: itemSelector,
+            animation: 150,
+            onEnd: async (evt) => {
+                const list = evt.to;
+                const items = list.querySelectorAll(itemSelector);
+                const batch = writeBatch(db);
+
+                items.forEach((item, index) => {
+                    const orderId = item.dataset.orderId;
+                    if (orderId) {
+                        batch.update(doc(db, 'tracking_orders', orderId), { route_order: index });
+                    }
+                });
+
+                try {
+                    await batch.commit();
+                    cachedTrackingOrders = null;
+                } catch (error) {
+                    console.error('Error saving route order:', error);
+                }
+            }
+        });
     }
 
     // ---- Render Tracking View ----
@@ -1356,9 +1386,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cardsWrapper = document.createElement('div');
                 cardsWrapper.className = 'tracking-order-cards';
 
-                byDate[date][area].forEach(order => {
+                byDate[date][area].slice().sort((a, b) => (a.route_order || 0) - (b.route_order || 0)).forEach(order => {
                     cardsWrapper.appendChild(createTrackingOrderCard(order));
                 });
+
+                setupSortable(cardsWrapper, '.tracking-order-card');
 
                 areaTitle.addEventListener('click', () => {
                     areaSection.classList.toggle('area-expanded');
@@ -1451,9 +1483,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cardsWrapper = document.createElement('div');
                 cardsWrapper.className = 'tracking-order-cards';
 
-                byArea[area][date].forEach(order => {
+                byArea[area][date].slice().sort((a, b) => (a.route_order || 0) - (b.route_order || 0)).forEach(order => {
                     cardsWrapper.appendChild(createTrackingOrderCard(order));
                 });
+
+                setupSortable(cardsWrapper, '.tracking-order-card');
 
                 dateTitle.addEventListener('click', () => {
                     dateSection.classList.toggle('area-expanded');
@@ -1613,30 +1647,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Initialize Sortable on this date group for drag-and-drop reordering
-            Sortable.create(content, {
-                handle: '.tt-drag-handle',
-                draggable: '.tracking-table-row',
-                animation: 150,
-                onEnd: async (evt) => {
-                    const container = evt.to;
-                    const rows = container.querySelectorAll('.tracking-table-row');
-                    const batch = writeBatch(db);
-
-                    rows.forEach((row, index) => {
-                        const orderId = row.dataset.orderId;
-                        if (orderId) {
-                            batch.update(doc(db, 'tracking_orders', orderId), { route_order: index });
-                        }
-                    });
-
-                    try {
-                        await batch.commit();
-                        cachedTrackingOrders = null;
-                    } catch (error) {
-                        console.error('Error saving route order:', error);
-                    }
-                }
-            });
+            setupSortable(content, '.tracking-table-row');
 
             trackingListEl.appendChild(accordion);
         });
