@@ -748,7 +748,7 @@ header p {
 /* Order Card (universal compact grid — identical to table-view rows) */
 .tracking-order-card {
     display: grid;
-    grid-template-columns: 30px 1fr 1fr 1fr;
+    grid-template-columns: 35% 35% 30%;
     gap: 0;
     border: 1px solid #e5e7eb;
     background: var(--card-bg);
@@ -831,6 +831,35 @@ header p {
     color: #fff;
 }
 
+/* Filter Status Button */
+.filter-status-btn {
+    flex: 1;
+    min-width: 40px;
+    padding: 0.75rem 0.5rem;
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    font-family: var(--font-family);
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: max-width 0.3s, opacity 0.3s, padding 0.3s, margin 0.3s, background 0.15s, color 0.15s, border-color 0.15s;
+    overflow: hidden;
+}
+
+.filter-status-btn:active {
+    background: var(--primary);
+    color: #fff;
+}
+
+.filter-status-btn.filter-active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
 /* Search Container */
 .tracking-search-container {
     flex: 1;
@@ -902,7 +931,8 @@ header p {
 /* Search expanded mode: hide buttons */
 .tracking-search-active .tracking-add-main-btn,
 .tracking-search-active .manage-areas-btn,
-.tracking-search-active .toggle-view-btn {
+.tracking-search-active .toggle-view-btn,
+.tracking-search-active .filter-status-btn {
     flex: 0 0 0;
     max-width: 0;
     padding: 1rem 0;
@@ -912,7 +942,8 @@ header p {
 }
 
 .tracking-search-active .toggle-view-btn,
-.tracking-search-active .manage-areas-btn {
+.tracking-search-active .manage-areas-btn,
+.tracking-search-active .filter-status-btn {
     padding: 0.75rem 0;
 }
 
@@ -924,10 +955,64 @@ header p {
     gap: 0;
 }
 
+/* Filter by Status Modal */
+.filter-status-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.filter-status-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.9rem 1rem;
+    background: #f9fafb;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-family: var(--font-family);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    cursor: pointer;
+    text-align: right;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.filter-status-option:active {
+    background: #eef2ff;
+    border-color: var(--primary);
+}
+
+.filter-status-option.active {
+    background: #eef2ff;
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.filter-status-option .filter-check {
+    font-weight: 800;
+    color: var(--primary);
+    display: none;
+}
+
+.filter-status-option.active .filter-check {
+    display: inline;
+}
+
+/* Flat filtered list */
+.tracking-filtered-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
 /* Table View Row (Excel-like spreadsheet row) */
 .tracking-table-row {
     display: grid;
-    grid-template-columns: 30px 1fr 1fr 1fr;
+    grid-template-columns: 35% 35% 30%;
     gap: 0;
     border: 1px solid #e5e7eb;
     background: var(--card-bg);
@@ -987,20 +1072,28 @@ header p {
     gap: 3px;
 }
 
-.tt-drag-handle {
+.tt-contact-line {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 2px;
+}
+
+.drag-handle {
+    color: #9ca3af;
     cursor: grab;
-    color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 4px 6px;
+    margin-inline-start: -6px;
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+    flex-shrink: 0;
 }
 
-.tt-drag-handle:active {
+.drag-handle:active {
     cursor: grabbing;
+    color: var(--text-muted);
 }
 
 .tt-notes {

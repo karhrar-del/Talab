@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc, enableIndexedDbPersistence, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc, enableIndexedDbPersistence, writeBatch, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // ---- Firebase Configuration ----
@@ -232,7 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             if (cachedTrackingOrders) return cachedTrackingOrders;
             setLoading(true);
-            const snapshot = await getDocs(collection(db, 'tracking_orders'));
+            const q = query(collection(db, 'tracking_orders'), orderBy('route_order', 'asc'));
+            const snapshot = await getDocs(q);
             cachedTrackingOrders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             return cachedTrackingOrders;
         } catch (error) {
@@ -816,6 +817,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let viewMode = localStorage.getItem('viewMode') || 'date-first';
     const toggleViewBtn = document.getElementById('toggle-view-btn');
 
+    // ---- Filter by Status State ----
+    let activeFilterStatus = 'الكل';
+
     // ---- Modal Helpers ----
     function openContactModal(order) {
         const phone = order.phone || '';
@@ -994,6 +998,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ---- Filter by Status Modal ----
+    const filterStatusBtn = document.getElementById('filter-status-btn');
+    const filterStatusModal = document.getElementById('filter-status-modal');
+    const filterStatusOptions = document.getElementById('filter-status-options');
+    const filterStatusClose = document.getElementById('filter-status-close');
+    const FILTER_STATUSES = ['الكل', 'قيد التسليم', 'مؤجل', 'راجع', 'واصل'];
+
+    function renderFilterOptions() {
+        if (!filterStatusOptions) return;
+        filterStatusOptions.innerHTML = '';
+        FILTER_STATUSES.forEach(status => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'filter-status-option' + (status === activeFilterStatus ? ' active' : '');
+            btn.dataset.status = status;
+            btn.innerHTML = `${status} <span class="filter-check">✓</span>`;
+            btn.addEventListener('click', () => {
+                activeFilterStatus = status;
+                if (filterStatusBtn) {
+                    filterStatusBtn.classList.toggle('filter-active', status !== 'الكل');
+                }
+                filterStatusModal.classList.add('hidden');
+                updateTrackingView();
+            });
+            filterStatusOptions.appendChild(btn);
+        });
+    }
+
+    function openFilterModal() {
+        renderFilterOptions();
+        filterStatusModal.classList.remove('hidden');
+    }
+
+    if (filterStatusBtn) {
+        filterStatusBtn.addEventListener('click', openFilterModal);
+    }
+    if (filterStatusClose) {
+        filterStatusClose.addEventListener('click', () => filterStatusModal.classList.add('hidden'));
+    }
+
     // ---- Search: Expand/Collapse Logic ----
     function expandSearch() {
         topActions.classList.add('tracking-search-active');
@@ -1048,6 +1092,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const l1Accordions = trackingListEl.querySelectorAll('.tracking-date-accordion');
+        const filteredList = trackingListEl.querySelector('.tracking-filtered-list');
+        let accordHasVisible = false;
+
+        if (filteredList) {
+            filteredList.querySelectorAll('.tracking-order-card').forEach(card => {
+                const data = (card.dataset.search || '').toLowerCase();
+                const match = data.includes(term);
+                card.classList.toggle('search-hidden', !match);
+                if (match) accordHasVisible = true;
+            });
+            filteredList.classList.toggle('search-hidden', !accordHasVisible);
+        }
+
         l1Accordions.forEach(accord => {
             const l2Sections = accord.querySelectorAll('.tracking-area-collapsible');
             const tableRows = accord.querySelectorAll('.tracking-table-row');
@@ -1202,9 +1259,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const safeNotes = escapeHtml(order.notes);
 
         card.innerHTML = `
-            <div class="tt-col tt-drag-handle">☰</div>
             <div class="tt-col tt-col-contact">
-                <div class="tt-name">${safeName}</div>
+                <div class="tt-contact-line">
+                    <span class="drag-handle">☰</span>
+                    <span class="tt-name">${safeName}</span>
+                </div>
                 <div class="tt-phone">📞 ${safePhone}</div>
             </div>
             <div class="tt-col tt-col-location">
@@ -1227,6 +1286,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
+
+        // Drag handle: prevent tap/click from opening the contact modal
+        const dragHandle = card.querySelector('.drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('click', (e) => e.stopPropagation());
+        }
 
         // Contact column (name/phone) -> contact modal
         card.querySelector('.tt-col-contact').addEventListener('click', () => {
@@ -1272,7 +1337,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Shared Sortable setup for drag-and-drop route reordering
     function setupSortable(container, itemSelector) {
         Sortable.create(container, {
-            handle: '.tt-drag-handle',
+            handle: '.drag-handle',
             draggable: itemSelector,
             animation: 150,
             onEnd: async (evt) => {
@@ -1318,13 +1383,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         noTrackingMsg.classList.add('hidden');
 
-        if (viewMode === 'date-first') {
+        if (activeFilterStatus !== 'الكل') {
+            renderFilteredFlatList(orders);
+        } else if (viewMode === 'date-first') {
             renderDateFirst(orders);
         } else if (viewMode === 'area-first') {
             renderAreaFirst(orders);
         } else {
             renderTableView(orders);
         }
+    }
+
+    function renderFilteredFlatList(orders) {
+        const filtered = orders.filter(order => order.status === activeFilterStatus);
+
+        if (!filtered || filtered.length === 0) {
+            noTrackingMsg.classList.remove('hidden');
+            return;
+        }
+        noTrackingMsg.classList.add('hidden');
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'tracking-filtered-list';
+
+        filtered.forEach(order => {
+            wrapper.appendChild(createTrackingOrderCard(order));
+        });
+
+        setupSortable(wrapper, '.tracking-order-card');
+
+        trackingListEl.appendChild(wrapper);
     }
 
     function renderDateFirst(orders) {
@@ -1584,9 +1672,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const safeNotes = escapeHtml(order.notes);
 
                 row.innerHTML = `
-                    <div class="tt-col tt-drag-handle">☰</div>
                     <div class="tt-col tt-col-contact">
-                        <div class="tt-name">${safeName}</div>
+                        <div class="tt-contact-line">
+                            <span class="drag-handle">☰</span>
+                            <span class="tt-name">${safeName}</span>
+                        </div>
                         <div class="tt-phone">📞 ${safePhone}</div>
                     </div>
                     <div class="tt-col tt-col-location">
@@ -1609,6 +1699,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
+
+                // Drag handle: prevent tap/click from opening the contact modal
+                const dragHandle = row.querySelector('.drag-handle');
+                if (dragHandle) {
+                    dragHandle.addEventListener('click', (e) => e.stopPropagation());
+                }
 
                 row.querySelector('.tt-col-contact').addEventListener('click', () => {
                     openContactModal(order);
